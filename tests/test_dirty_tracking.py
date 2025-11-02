@@ -449,6 +449,28 @@ class TestLoadedFontState:
         # Should be dirty for canvas_render (needs initial draw)
         assert simple_font.is_dirty(DIRTY_CANVAS_RENDER)
 
+    def test_loaded_font_with_user_data_clean(self, simple_font):
+        """Font with user_data should still be clean after initialization."""
+        # Add user_data to glyph and layer before initializing tracking
+        glyph = simple_font.glyphs["A"]
+        layer = glyph.layers[0]
+
+        # Disable tracking temporarily
+        glyph._tracking_enabled = False
+        layer._tracking_enabled = False
+
+        # Add user_data
+        glyph.user_data = {"test_key": "test_value", "nested": {"a": 1}}
+        layer.user_data = {"layer_key": "layer_value"}
+
+        # Re-initialize dirty tracking
+        simple_font.initialize_dirty_tracking()
+
+        # Should still be clean for file_saving after re-initialization
+        assert not simple_font.is_dirty(DIRTY_FILE_SAVING)
+        assert not glyph.is_dirty(DIRTY_FILE_SAVING)
+        assert not layer.is_dirty(DIRTY_FILE_SAVING)
+
 
 class TestAnchorTracking:
     """Test dirty tracking with anchors."""

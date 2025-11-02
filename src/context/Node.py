@@ -30,9 +30,18 @@ class Node(BaseObject, _NodeFields):
             node_str = '[%i,%i,"%s"]' % (self.x, self.y, self.type)
             stream.write(node_str.encode())
         else:
-            # Serialize user_data as JSON string
-            userdata_str = orjson.dumps(self.user_data).decode()
-            node_str = '[%i,%i,"%s",%s]' % (self.x, self.y, self.type, userdata_str)
+            # Serialize user_data as JSON string with sorted keys
+            # OPT_NON_STR_KEYS: Allow non-string dict keys
+            userdata_str = orjson.dumps(
+                self.user_data,
+                option=orjson.OPT_SORT_KEYS | orjson.OPT_NON_STR_KEYS,
+            ).decode()
+            node_str = '[%i,%i,"%s",%s]' % (
+                self.x,
+                self.y,
+                self.type,
+                userdata_str,
+            )
             stream.write(node_str.encode())
 
     @property

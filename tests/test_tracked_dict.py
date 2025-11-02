@@ -96,20 +96,16 @@ def test_tracked_dict_setdefault():
 
 
 def test_tracked_dict_nested_modification():
-    """Test that nested dict modifications work (but don't auto-track)."""
+    """Test that nested dict modifications are now auto-detected."""
     font = Font(_={"com.test": {"nested": "value"}})
     font.initialize_dirty_tracking()
     font.mark_clean(DIRTY_FILE_SAVING)
 
-    # Nested modification won't auto-track (standard Python behavior)
+    # Nested modification should now be detected when user_data is accessed
     font.user_data["com.test"]["nested"] = "changed"
 
-    # But the top-level TrackedDict itself wasn't modified
-    # Users need to trigger dirty tracking manually or reassign
-    assert not font.is_dirty(DIRTY_FILE_SAVING)
-
-    # Reassigning the nested dict triggers tracking
-    font.user_data["com.test"] = font.user_data["com.test"]
+    # Accessing user_data triggers the nested change detection
+    _ = font.user_data
     assert font.is_dirty(DIRTY_FILE_SAVING)
 
 
@@ -216,3 +212,240 @@ def test_tracked_dict_multiple_contexts():
 
     assert font.is_dirty(DIRTY_FILE_SAVING)
     assert font.is_dirty(DIRTY_CANVAS_RENDER)
+
+
+def test_user_data_sorted_serialization():
+    """Test that user_data keys are sorted alphabetically when serialized."""
+    import orjson
+    from io import BytesIO
+
+    # Create font with unsorted user_data keys
+    font = Font(
+        _={
+            "z.last": "value1",
+            "a.first": "value2",
+            "m.middle": "value3",
+        }
+    )
+
+    # Serialize to stream
+    stream = BytesIO()
+    font.write(stream, 0)
+    serialized = stream.getvalue().decode()
+
+    # Check that keys appear in alphabetical order
+    a_pos = serialized.find('"a.first"')
+    m_pos = serialized.find('"m.middle"')
+    z_pos = serialized.find('"z.last"')
+
+    assert (
+        a_pos < m_pos < z_pos
+    ), f"Keys not in alphabetical order: a={a_pos}, m={m_pos}, z={z_pos}"
+
+    # Also check direct orjson serialization with sorted keys
+    sorted_json = orjson.dumps(font.user_data, option=orjson.OPT_SORT_KEYS)
+    assert b'"a.first"' in sorted_json
+    assert sorted_json.index(b'"a.first"') < sorted_json.index(b'"m.middle"')
+    assert sorted_json.index(b'"m.middle"') < sorted_json.index(b'"z.last"')
+
+
+def test_user_data_nested_sorted_serialization():
+    """Test that nested user_data dicts are also sorted."""
+    import orjson
+    from context import Node
+
+    # Create node with nested unsorted user_data
+    node = Node(
+        100,
+        200,
+        "c",
+        _={
+            "z.namespace": {"z.key": "val1", "a.key": "val2"},
+            "a.namespace": {"z.key": "val3", "a.key": "val4"},
+        },
+    )
+
+    # Check that both outer and inner keys are sorted
+    sorted_json = orjson.dumps(node.user_data, option=orjson.OPT_SORT_KEYS)
+    decoded = orjson.loads(sorted_json)
+
+    # Verify outer keys are alphabetically sorted
+    keys = list(decoded.keys())
+    assert keys == sorted(keys)
+
+    # Verify inner keys are alphabetically sorted
+    for value in decoded.values():
+        if isinstance(value, dict):
+            inner_keys = list(value.keys())
+            assert inner_keys == sorted(inner_keys)
+
+
+def test_tracked_dict_deeply_nested():
+    """Test that deeply nested dicts (3+ levels) are tracked."""
+    font = Font(_={"level1": {"level2": {"level3": "value"}}})
+    font.initialize_dirty_tracking()
+    font.mark_clean(DIRTY_FILE_SAVING)
+
+    from context.BaseObject import TrackedDict
+
+    # Verify all levels are TrackedDict
+    assert isinstance(font.user_data["level1"], TrackedDict)
+    assert isinstance(font.user_data["level1"]["level2"], TrackedDict)
+
+    # Modify deep nested value
+    font.user_data["level1"]["level2"]["level3"] = "modified"
+
+    assert font.is_dirty(DIRTY_FILE_SAVING)
+
+
+def test_tracked_dict_list_with_dicts():
+    """Test that dicts inside lists are converted to TrackedDict."""
+    font = Font(_={"items": [{"id": 1, "name": "first"}, {"id": 2, "name": "second"}]})
+    font.initialize_dirty_tracking()
+    font.mark_clean(DIRTY_FILE_SAVING)
+
+    from context.BaseObject import TrackedDict
+
+    # Verify dicts in list are TrackedDict
+    assert isinstance(font.user_data["items"][0], TrackedDict)
+    assert isinstance(font.user_data["items"][1], TrackedDict)
+
+    # Modify dict inside list
+    font.user_data["items"][0]["name"] = "modified"
+
+    assert font.is_dirty(DIRTY_FILE_SAVING)
+
+
+def test_tracked_dict_add_nested_dict():
+    """Test that newly added nested dicts are automatically converted."""
+    font = Font(_={"existing": "value"})
+    font.initialize_dirty_tracking()
+    font.mark_clean(DIRTY_FILE_SAVING)
+
+    # Add a new nested dict
+    font.user_data["new_nested"] = {"inner": "data"}
+
+    from context.BaseObject import TrackedDict
+
+    assert isinstance(font.user_data["new_nested"], TrackedDict)
+    assert font.is_dirty(DIRTY_FILE_SAVING)
+
+    # Modify the newly added nested dict
+    font.mark_clean(DIRTY_FILE_SAVING)
+    font.user_data["new_nested"]["inner"] = "modified"
+
+    assert font.is_dirty(DIRTY_FILE_SAVING)
+
+
+def test_tracked_dict_popitem():
+    """Test that popitem() marks object dirty."""
+    font = Font(_={"key1": "value1", "key2": "value2"})
+    font.initialize_dirty_tracking()
+    font.mark_clean(DIRTY_FILE_SAVING)
+
+    assert not font.is_dirty(DIRTY_FILE_SAVING)
+
+    # popitem removes and returns an arbitrary item
+    key, value = font.user_data.popitem()
+
+    assert key in ["key1", "key2"]
+    assert value in ["value1", "value2"]
+    assert font.is_dirty(DIRTY_FILE_SAVING)
+    assert len(font.user_data) == 1
+
+
+def test_tracked_dict_mixed_nested_structures():
+    """Test complex nested structures with lists and dicts."""
+    font = Font(
+        _={
+            "config": {"options": [{"enabled": True}, {"enabled": False}]},
+            "data": [{"nested": {"deep": "value"}}],
+        }
+    )
+    font.initialize_dirty_tracking()
+    font.mark_clean(DIRTY_FILE_SAVING)
+
+    from context.BaseObject import TrackedDict
+
+    # Verify nested structures are TrackedDict
+    assert isinstance(font.user_data["config"], TrackedDict)
+    assert isinstance(font.user_data["config"]["options"][0], TrackedDict)
+    assert isinstance(font.user_data["data"][0], TrackedDict)
+    assert isinstance(font.user_data["data"][0]["nested"], TrackedDict)
+
+    # Modify deeply nested value
+    font.user_data["data"][0]["nested"]["deep"] = "modified"
+
+    assert font.is_dirty(DIRTY_FILE_SAVING)
+
+
+def test_tracked_dict_nested_empty_dicts():
+    """Test that empty nested dicts don't cause issues."""
+    font = Font(_={"outer": {}, "nested": {"inner": {}}})
+    font.initialize_dirty_tracking()
+    font.mark_clean(DIRTY_FILE_SAVING)
+
+    from context.BaseObject import TrackedDict
+
+    # Empty dicts should still be TrackedDict
+    assert isinstance(font.user_data["outer"], TrackedDict)
+    assert isinstance(font.user_data["nested"]["inner"], TrackedDict)
+
+    # Adding to empty nested dict should mark dirty
+    font.user_data["nested"]["inner"]["key"] = "value"
+
+    assert font.is_dirty(DIRTY_FILE_SAVING)
+
+
+def test_tracked_dict_non_string_keys():
+    """Test that non-string keys (integers, etc.) are supported."""
+    font = Font(_={"com.test": {1: "int_key", "2": "string_key"}})
+    font.initialize_dirty_tracking()
+    font.mark_clean(DIRTY_FILE_SAVING)
+
+    from context.BaseObject import TrackedDict
+
+    # Nested dict with int key should be TrackedDict
+    assert isinstance(font.user_data["com.test"], TrackedDict)
+    assert font.user_data["com.test"][1] == "int_key"
+    assert font.user_data["com.test"]["2"] == "string_key"
+
+    # Modifying value with int key should mark dirty
+    font.user_data["com.test"][1] = "modified"
+    assert font.is_dirty(DIRTY_FILE_SAVING)
+
+    # Adding new int key should work
+    font.mark_clean(DIRTY_FILE_SAVING)
+    font.user_data["com.test"][3] = "new_int_key"
+    assert font.is_dirty(DIRTY_FILE_SAVING)
+
+    # Serialization should work with non-string keys
+    import orjson
+
+    # This should not raise TypeError
+    serialized = orjson.dumps(
+        font.user_data, option=orjson.OPT_SORT_KEYS | orjson.OPT_NON_STR_KEYS
+    )
+    assert serialized is not None
+
+
+def test_node_serialization_with_non_string_keys():
+    """Test that Node serialization works with non-string keys in user_data."""
+    from io import BytesIO
+
+    # Create a node with non-string keys in user_data
+    node = Node(100, 200, "c", _={"com.test": {1: "value"}})
+
+    # Serialize the node (this should not raise TypeError)
+    stream = BytesIO()
+    node.write(stream, 0)
+    serialized = stream.getvalue().decode()
+
+    # Verify the serialization contains the node data
+    assert "100" in serialized
+    assert "200" in serialized
+    assert serialized.startswith("[")
+    assert serialized.endswith("]")
+
+    # Verify it includes the user_data
+    assert "com.test" in serialized

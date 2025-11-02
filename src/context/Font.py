@@ -149,15 +149,26 @@ class Font(_FontFields, BaseObject):
 
         Sets the font as clean for FILE_SAVING (matches disk state)
         and dirty for CANVAS_RENDER (needs initial render).
+
+        OPTIMIZATION: Uses lazy initialization - child objects get their
+        tracking flags initialized on-demand when first accessed/modified.
+        This avoids traversing all 877k+ objects upfront.
         """
-        from context.BaseObject import BaseObject, TrackedDict
+        from context.BaseObject import (
+            BaseObject,
+            DIRTY_CANVAS_RENDER,
+            DIRTY_FILE_SAVING,
+        )
 
         # Enable __setattr__ on BaseObject class (one-time operation)
-        # This adds dirty tracking to all BaseObject instances
+        # This adds dirty tracking to ALL BaseObject instances
         BaseObject._enable_tracking_setattr()
 
-        def enable_tracking_recursive(obj):
-            """Recursively enable tracking on object and children."""
+        def enable_tracking_lazy(obj):
+            """
+            Initialize tracking on an object without recursing to children.
+            Children will be initialized lazily when accessed.
+            """
             if not hasattr(obj, "_tracking_enabled"):
                 return
 
@@ -165,67 +176,32 @@ class Font(_FontFields, BaseObject):
             object.__setattr__(obj, "_tracking_enabled", True)
 
             # Initialize dirty flags as empty dicts (not None)
+            # This is the signal that tracking is active
             if obj._dirty_flags is None:
                 object.__setattr__(obj, "_dirty_flags", {})
             if obj._dirty_fields is None:
                 object.__setattr__(obj, "_dirty_fields", {})
 
-            # Convert user_data to TrackedDict
-            if (
-                hasattr(obj, "user_data")
-                and isinstance(obj.user_data, dict)
-                and not isinstance(obj.user_data, TrackedDict)
-            ):
-                # Use dict.update() to avoid triggering dirty tracking
-                tracked = TrackedDict(owner=obj)
-                dict.update(tracked, obj.user_data)
-                object.__setattr__(obj, "user_data", tracked)
+            # LAZY: Don't convert user_data, create snapshots, or recurse!
+            # Everything happens on-demand:
+            # - user_data → TrackedDict: on first access (tracked_getattribute)
+            # - snapshots: on first access (tracked_getattribute)
+            # - child tracking: when parent marks them clean/dirty
 
-            # Recursively process children
-            if hasattr(obj, "glyphs"):
-                for glyph in obj.glyphs:
-                    enable_tracking_recursive(glyph)
-            if hasattr(obj, "layers"):
-                for layer in obj.layers:
-                    enable_tracking_recursive(layer)
-            if hasattr(obj, "shapes"):
-                for shape in obj.shapes:
-                    enable_tracking_recursive(shape)
-                    if hasattr(shape, "nodes") and shape.nodes is not None:
-                        for node in shape.nodes:
-                            enable_tracking_recursive(node)
-            if hasattr(obj, "anchors"):
-                for anchor in obj.anchors:
-                    enable_tracking_recursive(anchor)
-            if hasattr(obj, "guides"):
-                for guide in obj.guides:
-                    enable_tracking_recursive(guide)
-            if hasattr(obj, "masters"):
-                for master in obj.masters:
-                    enable_tracking_recursive(master)
-            if hasattr(obj, "axes"):
-                for axis in obj.axes:
-                    enable_tracking_recursive(axis)
-            if hasattr(obj, "instances"):
-                for instance in obj.instances:
-                    enable_tracking_recursive(instance)
-            if hasattr(obj, "names"):
-                enable_tracking_recursive(obj.names)
-            if hasattr(obj, "features"):
-                enable_tracking_recursive(obj.features)
+        # Initialize tracking on Font object only (not children!)
+        enable_tracking_lazy(self)
+        print(f"  📍 Font tracking enabled: {self._tracking_enabled}")
 
-        # Enable tracking recursively
-        enable_tracking_recursive(self)
-
-        # Set initial dirty states for loaded font
-        # Clean for FILE_SAVING (matches disk), dirty for CANVAS_RENDER
-        from context.BaseObject import DIRTY_CANVAS_RENDER, DIRTY_FILE_SAVING
-
-        # Mark entire font as clean for file_saving (matches disk state)
+        # Mark font AND children clean for FILE_SAVING
+        # This recursively initializes tracking flags as needed
+        # (mark_clean will call enable_tracking_lazy for each child
+        # via _mark_children_clean)
         self.mark_clean(DIRTY_FILE_SAVING, recursive=True)
+        print("  📍 Font marked clean for FILE_SAVING")
 
-        # Mark as dirty for canvas render (needs initial render)
+        # Mark font dirty for canvas render (needs initial render)
         self.mark_dirty(DIRTY_CANVAS_RENDER, propagate=False)
+        print("  📍 Font marked dirty for CANVAS_RENDER")
 
     def _mark_children_clean(self, context):
         """Recursively mark children clean."""

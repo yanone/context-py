@@ -22,12 +22,45 @@ DIRTY_COMPILE = "compile"
 
 
 class TrackedDict(dict):
-    """A dict subclass that notifies its owner when modified."""
+    """
+    A dict subclass that notifies its owner when modified.
+    Recursively converts nested dicts to TrackedDict to track deep changes.
+    """
 
     def __init__(self, *args, owner=None, **kwargs):
         super().__init__(*args, **kwargs)
         # Store owner as weak reference to avoid circular references
         self._owner_ref = weakref.ref(owner) if owner else None
+        # Convert any nested dicts to TrackedDict
+        self._convert_nested_dicts()
+
+    def _convert_nested_dicts(self):
+        """Convert any nested plain dicts to TrackedDict."""
+        for key, value in list(self.items()):
+            if isinstance(value, dict) and not isinstance(value, TrackedDict):
+                # Create a nested TrackedDict with same owner
+                nested = TrackedDict(
+                    owner=self._owner_ref() if self._owner_ref else None
+                )
+                nested.update(value)
+                # Use dict.__setitem__ to avoid triggering dirty marking during init
+                dict.__setitem__(self, key, nested)
+            elif isinstance(value, list):
+                # Convert lists containing dicts
+                new_list = []
+                for item in value:
+                    if isinstance(item, dict) and not isinstance(item, TrackedDict):
+                        nested = TrackedDict(
+                            owner=self._owner_ref() if self._owner_ref else None
+                        )
+                        nested.update(item)
+                        new_list.append(nested)
+                    else:
+                        new_list.append(item)
+                if any(
+                    isinstance(item, TrackedDict) for item in new_list
+                ):  # Only replace if we converted something
+                    dict.__setitem__(self, key, new_list)
 
     def _mark_owner_dirty(self):
         """Mark the owner object as dirty when dict is modified."""
@@ -48,6 +81,28 @@ class TrackedDict(dict):
                 )
 
     def __setitem__(self, key, value):
+        # Convert nested dicts to TrackedDict
+        if isinstance(value, dict) and not isinstance(value, TrackedDict):
+            nested = TrackedDict(owner=self._owner_ref() if self._owner_ref else None)
+            nested.update(value)
+            value = nested
+        elif isinstance(value, list):
+            # Convert lists containing dicts
+            new_list = []
+            converted = False
+            for item in value:
+                if isinstance(item, dict) and not isinstance(item, TrackedDict):
+                    nested = TrackedDict(
+                        owner=self._owner_ref() if self._owner_ref else None
+                    )
+                    nested.update(item)
+                    new_list.append(nested)
+                    converted = True
+                else:
+                    new_list.append(item)
+            if converted:
+                value = new_list
+
         super().__setitem__(key, value)
         self._mark_owner_dirty()
 
@@ -75,8 +130,11 @@ class TrackedDict(dict):
         return super().setdefault(key, default)
 
     def update(self, *args, **kwargs):
-        super().update(*args, **kwargs)
-        self._mark_owner_dirty()
+        # First do the update with converted values
+        temp_dict = dict(*args, **kwargs)
+        for key, value in temp_dict.items():
+            self[key] = value  # This will use our __setitem__ which converts nested
+        # Note: _mark_owner_dirty is called by __setitem__ for each item
 
 
 class I18NDictionary(dict):
@@ -192,6 +250,8 @@ is exported not as `user_data` but as a simple underscore (`_`).
         object.__setattr__(self, "_dirty_flags", None)
         object.__setattr__(self, "_dirty_fields", None)
         object.__setattr__(self, "_parent_ref", None)
+        object.__setattr__(self, "_user_data_snapshot", None)
+        object.__setattr__(self, "_skip_user_data_check", False)
 
     @classmethod
     def _normalize_fields(cls, data_dict):
@@ -249,15 +309,31 @@ is exported not as `user_data` but as a simple underscore (`_`).
             context: The context name to mark clean
             recursive: Whether to recursively mark children clean
         """
+        # Lazy initialization: Initialize tracking if not yet done
+        # This happens when mark_clean is called recursively on children
+        if self._dirty_flags is None:
+            object.__setattr__(self, "_dirty_flags", {})
+        if self._dirty_fields is None:
+            object.__setattr__(self, "_dirty_fields", {})
+        # Enable tracking (needed for user_data change detection)
+        if hasattr(self, "_tracking_enabled") and not self._tracking_enabled:
+            object.__setattr__(self, "_tracking_enabled", True)
+
+        # Mark clean in this context
         if self._dirty_flags:
             self._dirty_flags.pop(context, None)
-            if not self._dirty_flags:  # Empty dict, set to None
-                object.__setattr__(self, "_dirty_flags", None)
+            # Keep as empty dict, don't set to None
+            # (None means tracking not initialized, {} means clean)
 
         if self._dirty_fields:
             self._dirty_fields.pop(context, None)
-            if not self._dirty_fields:  # Empty dict, set to None
-                object.__setattr__(self, "_dirty_fields", None)
+            # Keep as empty dict, don't set to None
+
+        # Don't snapshot user_data here - let it be lazy!
+        # Snapshot will be created automatically when:
+        # - user_data is first accessed (via tracked_getattribute)
+        # - user_data is modified (via tracked_setattr)
+        # This avoids expensive upfront snapshotting of 877k objects
 
         if recursive:
             self._mark_children_clean(context)
@@ -295,6 +371,79 @@ is exported not as `user_data` but as a simple underscore (`_`).
         """
         pass
 
+    def _snapshot_user_data(self):
+        """Create a snapshot of user_data for change detection."""
+        if hasattr(self, "user_data") and self.user_data:
+            # Serialize with sorted keys for consistent comparison
+            # OPT_NON_STR_KEYS: Allow non-string dict keys
+            snapshot = orjson.dumps(
+                self.user_data,
+                option=orjson.OPT_SORT_KEYS | orjson.OPT_NON_STR_KEYS,
+            )
+            object.__setattr__(self, "_user_data_snapshot", snapshot)
+        else:
+            object.__setattr__(self, "_user_data_snapshot", None)
+
+    def _check_user_data_changed(self):
+        """
+        Check if user_data has changed since last snapshot.
+        Returns True if changed, False otherwise.
+        Marks object dirty if changes detected.
+        """
+        # Use object.__getattribute__ to avoid recursion
+        try:
+            user_data = object.__getattribute__(self, "user_data")
+        except AttributeError:
+            return False
+
+        # Skip if user_data is empty (optimization)
+        if not user_data:
+            return False
+
+        # Get current serialized state
+        # OPT_NON_STR_KEYS: Allow non-string dict keys (converted to strings)
+        current = orjson.dumps(
+            user_data,
+            option=orjson.OPT_SORT_KEYS | orjson.OPT_NON_STR_KEYS,
+        )
+
+        # Compare with snapshot
+        try:
+            old_snapshot = object.__getattribute__(self, "_user_data_snapshot")
+        except AttributeError:
+            old_snapshot = None
+
+        # Lazy initialization: if no snapshot exists yet, create one now
+        # This avoids creating snapshots during initialization for all objects
+        if old_snapshot is None:
+            object.__setattr__(self, "_user_data_snapshot", current)
+            return False  # First access, not a change
+
+        changed = current != old_snapshot
+
+        # If changed and tracking is enabled, mark dirty and update snapshot
+        if changed:
+            try:
+                tracking_enabled = (
+                    object.__getattribute__(self, "_tracking_enabled")
+                    and object.__getattribute__(self, "_dirty_flags") is not None
+                )
+            except AttributeError:
+                tracking_enabled = False
+
+            if tracking_enabled:
+                mark_dirty = object.__getattribute__(self, "mark_dirty")
+                mark_dirty(DIRTY_FILE_SAVING, field_name="user_data", propagate=True)
+                mark_dirty(
+                    DIRTY_CANVAS_RENDER,
+                    field_name="user_data",
+                    propagate=True,
+                )
+                # Update snapshot after marking dirty
+                object.__setattr__(self, "_user_data_snapshot", current)
+
+        return changed
+
     @classmethod
     def _enable_tracking_setattr(cls):
         """
@@ -331,12 +480,14 @@ is exported not as `user_data` but as a simple underscore (`_`).
                     tracked.update(value)
                     value = tracked
                 object.__setattr__(self, name, value)
-                # Mark dirty for all standard contexts (only if tracking enabled)
+                # Mark dirty and snapshot (only if tracking enabled)
                 if tracking_enabled:
                     self.mark_dirty(DIRTY_FILE_SAVING, field_name=name, propagate=True)
                     self.mark_dirty(
                         DIRTY_CANVAS_RENDER, field_name=name, propagate=True
                     )
+                    # Create snapshot for future nested change detection
+                    self._snapshot_user_data()
                 return
 
             # Only track if the field exists and value actually changed
@@ -359,6 +510,51 @@ is exported not as `user_data` but as a simple underscore (`_`).
 
         # Add __setattr__ to the class (affects all instances)
         cls.__setattr__ = tracked_setattr
+
+        def tracked_getattribute(self, name):
+            """
+            Override getattribute to check for nested user_data changes.
+            When user_data is accessed, check if nested content changed.
+            Also lazily converts regular dict to TrackedDict on first access.
+            """
+            # Get the attribute using default mechanism
+            value = object.__getattribute__(self, name)
+
+            # Handle user_data access
+            if name == "user_data" and value is not None:
+                try:
+                    skip_check = object.__getattribute__(self, "_skip_user_data_check")
+                    if skip_check:
+                        return value
+
+                    tracking_enabled = (
+                        object.__getattribute__(self, "_tracking_enabled")
+                        and object.__getattribute__(self, "_dirty_flags") is not None
+                    )
+
+                    if tracking_enabled:
+                        # Lazy conversion: convert to TrackedDict on first access
+                        if isinstance(value, dict) and not isinstance(
+                            value, TrackedDict
+                        ):
+                            tracked = TrackedDict(owner=self)
+                            tracked.update(value)
+                            object.__setattr__(self, "user_data", tracked)
+                            value = tracked
+
+                        # Check for nested changes
+                        _check = object.__getattribute__(
+                            self, "_check_user_data_changed"
+                        )
+                        _check()
+                except AttributeError:
+                    # During initialization, these attrs might not exist
+                    pass
+
+            return value
+
+        # Add __getattribute__ to the class
+        cls.__getattribute__ = tracked_getattribute
 
     def _should_separate_when_serializing(self, key):
         if (
@@ -412,7 +608,8 @@ is exported not as `user_data` but as a simple underscore (`_`).
             date_str = v.strftime("%Y-%m-%d %H:%M:%S")
             stream.write('"{0}"'.format(date_str).encode())
         else:
-            stream.write(orjson.dumps(v))
+            # Allow non-string keys in case v is a dict
+            stream.write(orjson.dumps(v, option=orjson.OPT_NON_STR_KEYS))
 
     def write(self, stream, indent=0):
         if not self._write_one_line:
@@ -450,10 +647,22 @@ is exported not as `user_data` but as a simple underscore (`_`).
                 stream.write(b"  " * (indent + 1))
             stream.write(b'"_":')
             if self._write_one_line:
-                stream.write(orjson.dumps(self.user_data))
+                stream.write(
+                    orjson.dumps(
+                        self.user_data,
+                        option=orjson.OPT_SORT_KEYS | orjson.OPT_NON_STR_KEYS,
+                    )
+                )
             else:
                 stream.write(b"\n")
-                stream.write(orjson.dumps(self.user_data, option=orjson.OPT_INDENT_2))
+                stream.write(
+                    orjson.dumps(
+                        self.user_data,
+                        option=orjson.OPT_INDENT_2
+                        | orjson.OPT_SORT_KEYS
+                        | orjson.OPT_NON_STR_KEYS,
+                    )
+                )
 
         if not self._write_one_line:
             stream.write(b"\n")
