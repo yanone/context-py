@@ -32,6 +32,7 @@ context = 'context.__main__:main'
 
 [tool.pytest.ini_options]
 filterwarnings = "ignore::DeprecationWarning"
+testpaths = ["tests"]
 
 [tool.setuptools_scm]
 git_describe_command = "git describe --match 'v*' --tags"
