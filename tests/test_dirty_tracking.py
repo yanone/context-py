@@ -110,6 +110,9 @@ def font_file(tmp_path):
     glyph_c.layers.append(layer_c)
     font.glyphs.append(glyph_c)
 
+    # Enable tracking before saving
+    font.initialize_dirty_tracking()
+
     # Save to disk
     font_path = tmp_path / "TestFont.babelfont"
     font.save(str(font_path))
@@ -120,7 +123,9 @@ def font_file(tmp_path):
 @pytest.fixture
 def simple_font(font_file):
     """Load a font from disk for testing."""
-    return load(str(font_file))
+    font = load(str(font_file))
+    font.initialize_dirty_tracking()
+    return font
 
 
 class TestDirtyFlagBasics:

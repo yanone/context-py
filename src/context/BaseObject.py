@@ -21,6 +21,64 @@ DIRTY_UNDO = "undo"
 DIRTY_COMPILE = "compile"
 
 
+class TrackedDict(dict):
+    """A dict subclass that notifies its owner when modified."""
+
+    def __init__(self, *args, owner=None, **kwargs):
+        super().__init__(*args, **kwargs)
+        # Store owner as weak reference to avoid circular references
+        self._owner_ref = weakref.ref(owner) if owner else None
+
+    def _mark_owner_dirty(self):
+        """Mark the owner object as dirty when dict is modified."""
+        if self._owner_ref:
+            owner = self._owner_ref()
+            # Only mark dirty if owner exists and tracking is enabled
+            if (
+                owner
+                and hasattr(owner, "mark_dirty")
+                and hasattr(owner, "_tracking_enabled")
+                and owner._tracking_enabled
+            ):
+                owner.mark_dirty(
+                    DIRTY_FILE_SAVING, field_name="user_data", propagate=True
+                )
+                owner.mark_dirty(
+                    DIRTY_CANVAS_RENDER, field_name="user_data", propagate=True
+                )
+
+    def __setitem__(self, key, value):
+        super().__setitem__(key, value)
+        self._mark_owner_dirty()
+
+    def __delitem__(self, key):
+        super().__delitem__(key)
+        self._mark_owner_dirty()
+
+    def clear(self):
+        super().clear()
+        self._mark_owner_dirty()
+
+    def pop(self, *args, **kwargs):
+        result = super().pop(*args, **kwargs)
+        self._mark_owner_dirty()
+        return result
+
+    def popitem(self):
+        result = super().popitem()
+        self._mark_owner_dirty()
+        return result
+
+    def setdefault(self, key, default=None):
+        if key not in self:
+            self._mark_owner_dirty()
+        return super().setdefault(key, default)
+
+    def update(self, *args, **kwargs):
+        super().update(*args, **kwargs)
+        self._mark_owner_dirty()
+
+
 class I18NDictionary(dict):
     @classmethod
     def with_default(cls, s):
@@ -42,12 +100,14 @@ class I18NDictionary(dict):
             return self.get_default()
 
     def get_default(self):
+        """Get the default value, or first value if no explicit default."""
         if "dflt" in self:
             return self["dflt"]
         elif len(list(self.values())):
             return list(self.values())[0]
 
     def set_default(self, value):
+        """Set the default value."""
         if value:
             self["dflt"] = value
 
@@ -95,6 +155,10 @@ class BaseObject:
     # with existing file formats.
     _field_aliases = {}
 
+    # Tracking control: When False, __setattr__ bypasses all dirty tracking
+    # for fast loading. Call initialize_dirty_tracking() to enable.
+    _tracking_enabled = False
+
     user_data: dict = field(
         default_factory=dict,
         repr=False,
@@ -118,10 +182,13 @@ is exported not as `user_data` but as a simple underscore (`_`).
     _: dict = field(default=None, repr=False, metadata={"skip_serialize": True})
 
     def __post_init__(self):
-        if self._:
-            self.user_data = self._
-        # Initialize dirty tracking (not part of dataclass fields)
-        # Only initialize if not already set
+        # Fast initialization during loading - no tracking overhead
+        # Handle _ shorthand: copy to user_data if provided
+        if self._ is not None:
+            object.__setattr__(self, "user_data", self._)
+
+        # Initialize dirty tracking infrastructure (but tracking is disabled)
+        # These will be populated when initialize_dirty_tracking() is called
         if not hasattr(self, "_dirty_flags"):
             object.__setattr__(self, "_dirty_flags", None)
         if not hasattr(self, "_dirty_fields"):
@@ -233,14 +300,26 @@ is exported not as `user_data` but as a simple underscore (`_`).
 
     def __setattr__(self, name, value):
         """Override setattr to automatically track changes."""
-        # Skip internal fields and initialization
-        if name.startswith("_") or not hasattr(self, "__dataclass_fields__"):
+        # Fast path: tracking disabled (during loading) or internal fields
+        if (
+            not self._tracking_enabled
+            or name.startswith("_")
+            or not hasattr(self, "__dataclass_fields__")
+        ):
             object.__setattr__(self, name, value)
             return
 
-        # Skip tracking if dirty flags not yet initialized
-        if not hasattr(self, "_dirty_flags"):
+        # Special handling for user_data field
+        if name == "user_data":
+            # Convert regular dict to TrackedDict
+            if isinstance(value, dict) and not isinstance(value, TrackedDict):
+                tracked = TrackedDict(owner=self)
+                tracked.update(value)
+                value = tracked
             object.__setattr__(self, name, value)
+            # Mark dirty for all standard contexts
+            self.mark_dirty(DIRTY_FILE_SAVING, field_name=name, propagate=True)
+            self.mark_dirty(DIRTY_CANVAS_RENDER, field_name=name, propagate=True)
             return
 
         # Only track if the field exists and value actually changed

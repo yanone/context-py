@@ -54,9 +54,16 @@ __all__ = [
 
 
 def load(filename):
-    """Load a Context format font file."""
+    """Load a Context format font file.
+
+    Note: This does NOT automatically initialize dirty tracking.
+    Call font.initialize_dirty_tracking() explicitly after loading
+    if you need change tracking functionality.
+    """
     from context.convertors.nfsf import Context
     from context.convertors import Convert
 
     convertor = Convert(filename)
-    return Context.load(convertor)
+    font = Context.load(convertor)
+
+    return font

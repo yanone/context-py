@@ -262,6 +262,9 @@ feature liga {
     glyph_acute.layers.append(layer_acute)
     font.glyphs.append(glyph_acute)
 
+    # Enable tracking before tests use the font
+    font.initialize_dirty_tracking()
+
     return font
 
 
@@ -298,8 +301,7 @@ def compare_fonts(font1, font2, path="font"):
     # Compare format-specific
     if font1.user_data != font2.user_data:
         differences.append(
-            f"{path}.user_data: "
-            f"{font1.user_data} != {font2.user_data}"
+            f"{path}.user_data: " f"{font1.user_data} != {font2.user_data}"
         )
 
     # Compare axes
@@ -417,8 +419,7 @@ def compare_fonts(font1, font2, path="font"):
 
         if glyph1.user_data != glyph2.user_data:
             differences.append(
-                f"{gpath}.user_data: "
-                f"{glyph1.user_data} != {glyph2.user_data}"
+                f"{gpath}.user_data: " f"{glyph1.user_data} != {glyph2.user_data}"
             )
 
         # Compare layers
@@ -438,8 +439,7 @@ def compare_fonts(font1, font2, path="font"):
 
             if layer1.user_data != layer2.user_data:
                 differences.append(
-                    f"{lpath}.user_data: "
-                    f"{layer1.user_data} != {layer2.user_data}"
+                    f"{lpath}.user_data: " f"{layer1.user_data} != {layer2.user_data}"
                 )
 
             # Compare guides
@@ -671,6 +671,7 @@ def test_node_serialization_formats(tmp_path):
     from context import Font, Glyph, Layer, Shape, Node, Master
 
     font = Font()
+    font.initialize_dirty_tracking()
     font.upm = 1000
 
     master = Master(name={"en": "Regular"}, id="master-1", location={})
@@ -724,3 +725,100 @@ def test_node_serialization_formats(tmp_path):
     assert nodes_loaded[0].user_data == {}
     assert nodes_loaded[1].user_data == {"key": "value"}
     assert nodes_loaded[2].user_data == {}
+
+
+def test_save_without_tracking_identical(comprehensive_font, tmp_path):
+    """Test that saving produces identical results with or without tracking.
+
+    This ensures that initialize_dirty_tracking() doesn't affect serialization.
+    We load the same font twice: once with tracking (via load()) and once
+    without (by temporarily bypassing initialization), then save both and
+    verify the output files are identical.
+    """
+    import context
+    from context import Font
+
+    # First: Save the comprehensive font (which has tracking enabled)
+    path_original = tmp_path / "original.babelfont"
+    comprehensive_font.save(str(path_original))
+
+    # Second: Load it WITH tracking (explicitly initialize)
+    font_with_tracking = load(str(path_original))
+    font_with_tracking.initialize_dirty_tracking()
+    path_with_tracking = tmp_path / "with_tracking.babelfont"
+    font_with_tracking.save(str(path_with_tracking))
+
+    # Third: Load it WITHOUT initializing tracking
+    font_without_tracking = load(str(path_original))
+    # DON'T call font_without_tracking.initialize_dirty_tracking()
+
+    # Save without tracking
+    path_no_tracking = tmp_path / "without_tracking.babelfont"
+    font_without_tracking.save(str(path_no_tracking))
+
+    # Fourth: Compare the saved files - they should be identical
+    import os
+
+    # Compare info.json files
+    with open(path_with_tracking / "info.json") as f:
+        data_with = json.load(f)
+    with open(path_no_tracking / "info.json") as f:
+        data_without = json.load(f)
+
+    assert (
+        data_with == data_without
+    ), "info.json should be identical with/without tracking"
+
+    # Compare names.json files
+    with open(path_with_tracking / "names.json") as f:
+        names_with = json.load(f)
+    with open(path_no_tracking / "names.json") as f:
+        names_without = json.load(f)
+
+    assert names_with == names_without, "names.json should be identical"
+
+    # Compare features.fea if present
+    features_with = path_with_tracking / "features.fea"
+    features_without = path_no_tracking / "features.fea"
+    if features_with.exists() and features_without.exists():
+        assert (
+            features_with.read_text() == features_without.read_text()
+        ), "features.fea should be identical"
+
+    # Compare glyph files
+    glyphs_dir_with = path_with_tracking / "glyphs"
+    glyphs_dir_without = path_no_tracking / "glyphs"
+
+    glyph_files_with = sorted(os.listdir(glyphs_dir_with))
+    glyph_files_without = sorted(os.listdir(glyphs_dir_without))
+
+    assert (
+        glyph_files_with == glyph_files_without
+    ), "Should have same glyph files with/without tracking"
+
+    # Compare each glyph file
+    for glyph_file in glyph_files_with:
+        with open(glyphs_dir_with / glyph_file) as f:
+            glyph_data_with = json.load(f)
+        with open(glyphs_dir_without / glyph_file) as f:
+            glyph_data_without = json.load(f)
+
+        assert (
+            glyph_data_with == glyph_data_without
+        ), f"Glyph file {glyph_file} should be identical with/without tracking"
+
+    # Finally: Load both saved versions and verify functionally identical
+    font_loaded_with = load(str(path_with_tracking))
+    font_loaded_with.initialize_dirty_tracking()
+    font_loaded_without = load(str(path_no_tracking))
+    font_loaded_without.initialize_dirty_tracking()
+
+    # Use the compare_fonts function from earlier in this file
+    diffs = compare_fonts(font_loaded_with, font_loaded_without, "with vs without")
+
+    if diffs:
+        print("\nDifferences found between fonts saved with/without tracking:")
+        for diff in diffs:
+            print(f"  {diff}")
+
+    assert not diffs, "Fonts should be identical regardless of tracking state"

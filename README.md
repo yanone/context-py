@@ -47,7 +47,24 @@ This is useful when you need to provide context about Context's structure to an 
 
 ### November 2nd 2025
 
-**Format-Specific Metadata**: All Context objects use `user_data` (a dict field) to store format-specific metadata, replacing Babelfont's `_formatspecific`. Changes to `user_data` are automatically tracked for dirty flags. The field serializes to JSON as `"_"` for backward compatibility.
+**Format-Specific Metadata**: All Context objects use `user_data` (a `TrackedDict` wrapper) to store format-specific metadata, replacing Babelfont's `_formatspecific`. Individual key modifications are automatically tracked for dirty flags:
+
+```python
+# All dict operations trigger dirty tracking
+font.user_data["com.myapp"] = {"version": "1.0"}  # ✓ Tracked
+font.user_data.update({"key": "value"})           # ✓ Tracked
+del font.user_data["key"]                         # ✓ Tracked
+font.user_data.pop("key")                         # ✓ Tracked
+
+# Initialize with _ shorthand
+glyph = Glyph(name="a", _={"com.app": "data"})    # ✓ Tracked
+
+# Note: Nested dict modifications require reassignment
+font.user_data["nested"]["key"] = "val"           # ✗ Not tracked
+font.user_data["nested"] = font.user_data["nested"]  # ✓ Tracked
+```
+
+The field serializes to JSON as `"_"` for backward compatibility.
 
 **Node Implementation**: Context's `Node` class inherits from `BaseObject` (unlike Babelfont), providing dirty tracking and parent references.
 

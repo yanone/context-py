@@ -138,6 +138,83 @@ class Font(_FontFields, BaseObject):
         self.names._set_parent(self)
         self.features._set_parent(self)
 
+    def initialize_dirty_tracking(self):
+        """
+        Enable dirty tracking for this font and all its children.
+        Call this after loading a font to activate change tracking.
+
+        Sets the font as clean for FILE_SAVING (matches disk state)
+        and dirty for CANVAS_RENDER (needs initial render).
+        """
+        from context.BaseObject import TrackedDict
+
+        def enable_tracking_recursive(obj):
+            """Recursively enable tracking on object and children."""
+            if not hasattr(obj, "_tracking_enabled"):
+                return
+
+            # Enable tracking for this object
+            object.__setattr__(obj, "_tracking_enabled", True)
+
+            # Initialize dirty flags as empty dicts (not None)
+            if obj._dirty_flags is None:
+                object.__setattr__(obj, "_dirty_flags", {})
+            if obj._dirty_fields is None:
+                object.__setattr__(obj, "_dirty_fields", {})
+
+            # Convert user_data to TrackedDict (even if empty, for future modifications)
+            if (
+                hasattr(obj, "user_data")
+                and isinstance(obj.user_data, dict)
+                and not isinstance(obj.user_data, TrackedDict)
+            ):
+                # Use dict.update() to avoid triggering dirty tracking during init
+                tracked = TrackedDict(owner=obj)
+                dict.update(tracked, obj.user_data)
+                object.__setattr__(obj, "user_data", tracked)
+
+            # Recursively process children based on object type
+            if hasattr(obj, "glyphs"):
+                for glyph in obj.glyphs:
+                    enable_tracking_recursive(glyph)
+            if hasattr(obj, "layers"):
+                for layer in obj.layers:
+                    enable_tracking_recursive(layer)
+            if hasattr(obj, "shapes"):
+                for shape in obj.shapes:
+                    enable_tracking_recursive(shape)
+                    if hasattr(shape, "nodes") and shape.nodes is not None:
+                        for node in shape.nodes:
+                            enable_tracking_recursive(node)
+            if hasattr(obj, "anchors"):
+                for anchor in obj.anchors:
+                    enable_tracking_recursive(anchor)
+            if hasattr(obj, "guides"):
+                for guide in obj.guides:
+                    enable_tracking_recursive(guide)
+            if hasattr(obj, "masters"):
+                for master in obj.masters:
+                    enable_tracking_recursive(master)
+            if hasattr(obj, "axes"):
+                for axis in obj.axes:
+                    enable_tracking_recursive(axis)
+            if hasattr(obj, "instances"):
+                for instance in obj.instances:
+                    enable_tracking_recursive(instance)
+            if hasattr(obj, "names"):
+                enable_tracking_recursive(obj.names)
+            if hasattr(obj, "features"):
+                enable_tracking_recursive(obj.features)
+
+        # Enable tracking recursively
+        enable_tracking_recursive(self)
+
+        # Set initial dirty states for loaded font
+        # Clean for FILE_SAVING (matches disk), dirty for CANVAS_RENDER
+        from context.BaseObject import DIRTY_CANVAS_RENDER
+
+        self.mark_dirty(DIRTY_CANVAS_RENDER, propagate=False)
+
     def _mark_children_clean(self, context):
         """Recursively mark children clean."""
         for glyph in self.glyphs:
