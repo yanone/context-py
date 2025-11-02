@@ -6,7 +6,7 @@ title: Shape
 
 ---
 
-Shape(ref: str = None, transform: fontTools.misc.transform.Transform = None, nodes: List[context.Node.Node] = None, closed: bool = True, direction: int = 1, _formatspecific: dict = <factory>, _: dict = None)
+Shape(ref: str = None, transform: fontTools.misc.transform.Transform = None, nodes: List[context.Node.Node] = None, closed: bool = True, direction: int = 1, user_data: dict = <factory>, _: dict = None)
 * When writing to Context-JSON, this class must be serialized without newlines
 ## Shape.ref
 
@@ -48,7 +48,7 @@ Shape(ref: str = None, transform: fontTools.misc.transform.Transform = None, nod
 *If not provided, defaults to* `1`.
 
 
-## Shape._formatspecific
+## Shape.user_data
 
 * Python type: `dict`
 
@@ -63,7 +63,7 @@ it will be a `dict`.
 
 Note that there is an important distinction between the Python object format
 of this field and the Context-JSON representation. When stored to JSON, this key
-is exported not as `_formatspecific` but as a simple underscore (`_`).
+is exported not as `user_data` but as a simple underscore (`_`).
 
 
 

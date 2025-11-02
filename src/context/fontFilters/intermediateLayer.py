@@ -42,16 +42,16 @@ def promote_intermediate_layers(font: Font, _args: dict):
             layer._master = master.id
             layer.id = master.id
             # Remove the intermediate coordinate, making it a regular layer
-            del layer._formatspecific["com.glyphsapp"]["attr"]["coordinates"]
+            del layer.user_data["com.glyphsapp"]["attr"]["coordinates"]
 
 
 # We know a layer is "intermediate" if it has a Glyphs-specific attribute
 # ["attr"]["coordinates"]. The coordinates are the location of the sparse master;
 # just the raw values, so we zip them with the axis tags in order.
 def intermediate_location(l: Layer, f: Font) -> Optional[Dict[str, float]]:
-    if not l._formatspecific or not l._formatspecific["com.glyphsapp"]:
+    if not l.user_data or not l.user_data["com.glyphsapp"]:
         return
-    attr = l._formatspecific["com.glyphsapp"].get("attr")
+    attr = l.user_data["com.glyphsapp"].get("attr")
     if attr and "coordinates" in attr:
         return {axis.tag: coord for axis, coord in zip(f.axes, attr["coordinates"])}
 

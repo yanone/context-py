@@ -41,7 +41,7 @@ A boolean indicating whether this instance is variable or static.
 A dictionary of custom names for this instance.
 
 
-## Instance._formatspecific
+## Instance.user_data
 
 * Python type: `dict`
 
@@ -56,7 +56,7 @@ it will be a `dict`.
 
 Note that there is an important distinction between the Python object format
 of this field and the Context-JSON representation. When stored to JSON, this key
-is exported not as `_formatspecific` but as a simple underscore (`_`).
+is exported not as `user_data` but as a simple underscore (`_`).
 
 
 

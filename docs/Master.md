@@ -82,7 +82,7 @@ Within the Python object, provides a reference to the font object containing thi
 *If not provided, defaults to* `None`.
 
 
-## Master._formatspecific
+## Master.user_data
 
 * Python type: `dict`
 
@@ -97,7 +97,7 @@ it will be a `dict`.
 
 Note that there is an important distinction between the Python object format
 of this field and the Context-JSON representation. When stored to JSON, this key
-is exported not as `_formatspecific` but as a simple underscore (`_`).
+is exported not as `user_data` but as a simple underscore (`_`).
 
 
 

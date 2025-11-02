@@ -6,7 +6,7 @@ title: Anchor
 
 ---
 
-Anchor(name: str, x: int = 0, y: int = 0, _formatspecific: dict = <factory>, _: dict = None)
+Anchor(name: str, x: int = 0, y: int = 0, user_data: dict = <factory>, _: dict = None)
 ## Anchor.name
 
 * Python type: `str`
@@ -32,7 +32,7 @@ Anchor(name: str, x: int = 0, y: int = 0, _formatspecific: dict = <factory>, _: 
 *If not provided, defaults to* `0`.
 
 
-## Anchor._formatspecific
+## Anchor.user_data
 
 * Python type: `dict`
 
@@ -47,7 +47,7 @@ it will be a `dict`.
 
 Note that there is an important distinction between the Python object format
 of this field and the Context-JSON representation. When stored to JSON, this key
-is exported not as `_formatspecific` but as a simple underscore (`_`).
+is exported not as `user_data` but as a simple underscore (`_`).
 
 
 

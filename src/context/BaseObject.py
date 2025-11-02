@@ -71,7 +71,7 @@ class I18NDictionary(dict):
 class BaseObject:
     # OK, what's going on here? And why do we split _FoobarFields from Foobar?
     # We want to achieve the following:
-    #    * A ``_formatspecific`` field on *every* derived object...
+    #    * A ``user_data`` field on *every* derived object...
     #    * ...which does not need to be added to the constructor arguments
     #    * ...but which (for convenience when instantiating from JSON) has an
     #      alias of ``_`` which *can* be added to the constructor arguments
@@ -80,14 +80,14 @@ class BaseObject:
     # (just like Python function declarations) dataclasses don't support putting
     # defaultable fields after non-defaultable fields.
 
-    # Because we want ``_formatspecific`` (and particularly ``_``) to be optional
+    # Because we want ``user_data`` (and particularly ``_``) to be optional
     # on __init__ it needs to be defaultable. So it needs to appear after the
     # other fields in the inheritance hierarchy. So we inherit from a _...Fields
     # class first and then BaseObject second. Ugly but it works.
 
     # dataclasses also don't support field aliases. The ``_`` field is only
     # really used for initialization, so in ``__post_init__`` we move its
-    # contents into the `_formatspecific` field where it really lives.
+    # contents into the `user_data` field where it really lives.
 
     # Field aliasing: Classes can define a _field_aliases dict mapping Python
     # field names to their serialized names in the file format. This allows
@@ -95,7 +95,7 @@ class BaseObject:
     # with existing file formats.
     _field_aliases = {}
 
-    _formatspecific: dict = field(
+    user_data: dict = field(
         default_factory=dict,
         repr=False,
         metadata={
@@ -111,7 +111,7 @@ it will be a `dict`.
 
 Note that there is an important distinction between the Python object format
 of this field and the Context-JSON representation. When stored to JSON, this key
-is exported not as `_formatspecific` but as a simple underscore (`_`).
+is exported not as `user_data` but as a simple underscore (`_`).
 """,
         },
     )
@@ -119,7 +119,7 @@ is exported not as `_formatspecific` but as a simple underscore (`_`).
 
     def __post_init__(self):
         if self._:
-            self._formatspecific = self._
+            self.user_data = self._
         # Initialize dirty tracking (not part of dataclass fields)
         # Only initialize if not already set
         if not hasattr(self, "_dirty_flags"):
@@ -339,19 +339,17 @@ is exported not as `_formatspecific` but as a simple underscore (`_`).
             if ix != len(towrite) - 1:
                 stream.write(b", ")
 
-        if hasattr(self, "_formatspecific") and self._formatspecific:
+        if hasattr(self, "user_data") and self.user_data:
             stream.write(b",")
             if not self._write_one_line:
                 stream.write(b"\n")
                 stream.write(b"  " * (indent + 1))
             stream.write(b'"_":')
             if self._write_one_line:
-                stream.write(orjson.dumps(self._formatspecific))
+                stream.write(orjson.dumps(self.user_data))
             else:
                 stream.write(b"\n")
-                stream.write(
-                    orjson.dumps(self._formatspecific, option=orjson.OPT_INDENT_2)
-                )
+                stream.write(orjson.dumps(self.user_data, option=orjson.OPT_INDENT_2))
 
         if not self._write_one_line:
             stream.write(b"\n")

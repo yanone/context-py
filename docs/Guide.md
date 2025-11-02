@@ -6,7 +6,7 @@ title: Guide
 
 ---
 
-Guide(position: context.BaseObject.Position, name: str = None, color: context.BaseObject.Color = None, _formatspecific: dict = <factory>, _: dict = None)
+Guide(position: context.BaseObject.Position, name: str = None, color: context.BaseObject.Color = None, user_data: dict = <factory>, _: dict = None)
 ## Guide.position
 
 * Python type: `Position`
@@ -32,7 +32,7 @@ Guide(position: context.BaseObject.Position, name: str = None, color: context.Ba
 *If not provided, defaults to* `None`.
 
 
-## Guide._formatspecific
+## Guide.user_data
 
 * Python type: `dict`
 
@@ -47,7 +47,7 @@ it will be a `dict`.
 
 Note that there is an important distinction between the Python object format
 of this field and the Context-JSON representation. When stored to JSON, this key
-is exported not as `_formatspecific` but as a simple underscore (`_`).
+is exported not as `user_data` but as a simple underscore (`_`).
 
 
 

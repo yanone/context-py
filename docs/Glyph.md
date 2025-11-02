@@ -6,7 +6,7 @@ title: Glyph
 
 ---
 
-Glyph(name: str, production_name: Optional[str] = None, category: str = 'base', codepoints: List[int] = <factory>, layers: List[context.Layer.Layer] = <factory>, exported: bool = True, direction: str = 'LTR', _formatspecific: dict = <factory>, _: dict = None)
+Glyph(name: str, production_name: Optional[str] = None, category: str = 'base', codepoints: List[int] = <factory>, layers: List[context.Layer.Layer] = <factory>, exported: bool = True, direction: str = 'LTR', user_data: dict = <factory>, _: dict = None)
 * When writing to Context-JSON, this class must be serialized without newlines
 ## Glyph.name
 
@@ -63,7 +63,7 @@ Glyph(name: str, production_name: Optional[str] = None, category: str = 'base', 
 *If not provided, defaults to* `LTR`.
 
 
-## Glyph._formatspecific
+## Glyph.user_data
 
 * Python type: `dict`
 
@@ -78,7 +78,7 @@ it will be a `dict`.
 
 Note that there is an important distinction between the Python object format
 of this field and the Context-JSON representation. When stored to JSON, this key
-is exported not as `_formatspecific` but as a simple underscore (`_`).
+is exported not as `user_data` but as a simple underscore (`_`).
 
 
 

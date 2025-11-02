@@ -31,12 +31,12 @@ class Context(BaseConvertor):
         names = self._load_file("names.json")
         info = self._load_file("info.json")
         glyphs = self._load_file("glyphs.json")
-        self.font._formatspecific = info.get("_", {})
+        self.font.user_data = info.get("_", {})
         for k, v in names.items():
             if k in self.font.names.__dataclass_fields__:
                 getattr(self.font.names, k).copy_in(v)
             elif k == "_":
-                self.font.names._formatspecific = v
+                self.font.names.user_data = v
         # Set parent reference for names
         self.font.names._set_parent(self.font)
 

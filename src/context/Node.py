@@ -25,13 +25,13 @@ class _NodeFields:
 @dataclass
 class Node(BaseObject, _NodeFields):
     def write(self, stream, _indent):
-        # Check if there's any format-specific data to write
-        if not self._formatspecific:
+        # Check if there's any user data to write
+        if not self.user_data:
             node_str = '[%i,%i,"%s"]' % (self.x, self.y, self.type)
             stream.write(node_str.encode())
         else:
-            # Serialize _formatspecific as JSON string
-            userdata_str = orjson.dumps(self._formatspecific).decode()
+            # Serialize user_data as JSON string
+            userdata_str = orjson.dumps(self.user_data).decode()
             node_str = '[%i,%i,"%s",%s]' % (self.x, self.y, self.type, userdata_str)
             stream.write(node_str.encode())
 

@@ -6,7 +6,7 @@ title: Layer
 
 ---
 
-Layer(width: int = 0, height: int = 0, vertWidth: Optional[int] = None, name: str = None, _master: str = None, id: str = <factory>, guides: List[context.Guide.Guide] = <factory>, shapes: List[context.Shape.Shape] = <factory>, anchors: List[context.Anchor.Anchor] = <factory>, color: context.BaseObject.Color = None, layerIndex: int = 0, background: Optional[str] = None, isBackground: bool = False, location: List[float] = None, _font: Optional[ForwardRef('Font')] = None, _glyph: Optional[ForwardRef('Glyph')] = None, _formatspecific: dict = <factory>, _: dict = None)
+Layer(width: int = 0, height: int = 0, vertWidth: Optional[int] = None, name: str = None, _master: str = None, id: str = <factory>, guides: List[context.Guide.Guide] = <factory>, shapes: List[context.Shape.Shape] = <factory>, anchors: List[context.Anchor.Anchor] = <factory>, color: context.BaseObject.Color = None, layerIndex: int = 0, background: Optional[str] = None, isBackground: bool = False, location: List[float] = None, _font: Optional[ForwardRef('Font')] = None, _glyph: Optional[ForwardRef('Glyph')] = None, user_data: dict = <factory>, _: dict = None)
 ## Layer.width
 
 * Python type: `int`
@@ -137,7 +137,7 @@ Layer(width: int = 0, height: int = 0, vertWidth: Optional[int] = None, name: st
 *If not provided, defaults to* `None`.
 
 
-## Layer._formatspecific
+## Layer.user_data
 
 * Python type: `dict`
 
@@ -152,7 +152,7 @@ it will be a `dict`.
 
 Note that there is an important distinction between the Python object format
 of this field and the Context-JSON representation. When stored to JSON, this key
-is exported not as `_formatspecific` but as a simple underscore (`_`).
+is exported not as `user_data` but as a simple underscore (`_`).
 
 
 

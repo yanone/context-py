@@ -47,12 +47,9 @@ This is useful when you need to provide context about Context's structure to an 
 
 ### November 2nd 2025
 
-**Node Implementation**: Context's `Node` class inherits from `BaseObject` (unlike Babelfont), providing dirty tracking, parent references, and format-specific metadata. The `userdata` string field has been replaced with the standard `_formatspecific` dict:
+**Format-Specific Metadata**: All Context objects use `user_data` (a dict field) to store format-specific metadata, replacing Babelfont's `_formatspecific`. Changes to `user_data` are automatically tracked for dirty flags. The field serializes to JSON as `"_"` for backward compatibility.
 
-```python
-# Context style
-node = Node(100, 200, "c", _={"custom": "data"})
-```
+**Node Implementation**: Context's `Node` class inherits from `BaseObject` (unlike Babelfont), providing dirty tracking and parent references.
 
 **Property Naming**: The abbreviated `pos` property has been renamed to `position` for clarity:
 - `Guide.position` - guideline position (was `Guide.pos`)

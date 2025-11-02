@@ -38,7 +38,7 @@ def comprehensive_font(tmp_path):
     font.names.manufacturerURL = {"en": "https://example.com"}
 
     # Add format-specific data to font
-    font._formatspecific = {"com.test": {"version": "1.0", "data": [1, 2, 3]}}
+    font.user_data = {"com.test": {"version": "1.0", "data": [1, 2, 3]}}
 
     # Add axes (for variable font)
     axis_weight = Axis(
@@ -296,10 +296,10 @@ def compare_fonts(font1, font2, path="font"):
             differences.append(f"{path}.names.{name_field}: {val1} != {val2}")
 
     # Compare format-specific
-    if font1._formatspecific != font2._formatspecific:
+    if font1.user_data != font2.user_data:
         differences.append(
-            f"{path}._formatspecific: "
-            f"{font1._formatspecific} != {font2._formatspecific}"
+            f"{path}.user_data: "
+            f"{font1.user_data} != {font2.user_data}"
         )
 
     # Compare axes
@@ -313,10 +313,10 @@ def compare_fonts(font1, font2, path="font"):
             val2 = getattr(axis2, attr)
             if val1 != val2:
                 differences.append(f"{path}.axes[{i}].{attr}: {val1} != {val2}")
-        if axis1._formatspecific != axis2._formatspecific:
+        if axis1.user_data != axis2.user_data:
             differences.append(
-                f"{path}.axes[{i}]._formatspecific: "
-                f"{axis1._formatspecific} != {axis2._formatspecific}"
+                f"{path}.axes[{i}].user_data: "
+                f"{axis1.user_data} != {axis2.user_data}"
             )
 
     # Compare instances
@@ -335,10 +335,10 @@ def compare_fonts(font1, font2, path="font"):
                 f"{path}.instances[{i}].location: "
                 f"{inst1.location} != {inst2.location}"
             )
-        if inst1._formatspecific != inst2._formatspecific:
+        if inst1.user_data != inst2.user_data:
             differences.append(
-                f"{path}.instances[{i}]._formatspecific: "
-                f"{inst1._formatspecific} != {inst2._formatspecific}"
+                f"{path}.instances[{i}].user_data: "
+                f"{inst1.user_data} != {inst2.user_data}"
             )
 
     # Compare masters
@@ -352,10 +352,10 @@ def compare_fonts(font1, font2, path="font"):
             val2 = getattr(master2, attr)
             if val1 != val2:
                 differences.append(f"{path}.masters[{i}].{attr}: {val1} != {val2}")
-        if master1._formatspecific != master2._formatspecific:
+        if master1.user_data != master2.user_data:
             differences.append(
-                f"{path}.masters[{i}]._formatspecific: "
-                f"{master1._formatspecific} != {master2._formatspecific}"
+                f"{path}.masters[{i}].user_data: "
+                f"{master1.user_data} != {master2.user_data}"
             )
 
         # Compare master guides
@@ -415,10 +415,10 @@ def compare_fonts(font1, font2, path="font"):
             if val1 != val2:
                 differences.append(f"{gpath}.{attr}: {val1} != {val2}")
 
-        if glyph1._formatspecific != glyph2._formatspecific:
+        if glyph1.user_data != glyph2.user_data:
             differences.append(
-                f"{gpath}._formatspecific: "
-                f"{glyph1._formatspecific} != {glyph2._formatspecific}"
+                f"{gpath}.user_data: "
+                f"{glyph1.user_data} != {glyph2.user_data}"
             )
 
         # Compare layers
@@ -436,10 +436,10 @@ def compare_fonts(font1, font2, path="font"):
                 if val1 != val2:
                     differences.append(f"{lpath}.{attr}: {val1} != {val2}")
 
-            if layer1._formatspecific != layer2._formatspecific:
+            if layer1.user_data != layer2.user_data:
                 differences.append(
-                    f"{lpath}._formatspecific: "
-                    f"{layer1._formatspecific} != {layer2._formatspecific}"
+                    f"{lpath}.user_data: "
+                    f"{layer1.user_data} != {layer2.user_data}"
                 )
 
             # Compare guides
@@ -479,11 +479,11 @@ def compare_fonts(font1, font2, path="font"):
                     if val1 != val2:
                         differences.append(f"{spath}.{attr}: {val1} != {val2}")
 
-                if shape1._formatspecific != shape2._formatspecific:
+                if shape1.user_data != shape2.user_data:
                     differences.append(
-                        f"{spath}._formatspecific: "
-                        f"{shape1._formatspecific} != "
-                        f"{shape2._formatspecific}"
+                        f"{spath}.user_data: "
+                        f"{shape1.user_data} != "
+                        f"{shape2.user_data}"
                     )
 
                 # Compare nodes
@@ -501,11 +501,11 @@ def compare_fonts(font1, font2, path="font"):
                             val2 = getattr(node2, attr)
                             if val1 != val2:
                                 differences.append(f"{npath}.{attr}: {val1} != {val2}")
-                        if node1._formatspecific != node2._formatspecific:
+                        if node1.user_data != node2.user_data:
                             differences.append(
-                                f"{npath}._formatspecific: "
-                                f"{node1._formatspecific} != "
-                                f"{node2._formatspecific}"
+                                f"{npath}.user_data: "
+                                f"{node1.user_data} != "
+                                f"{node2.user_data}"
                             )
 
             # Compare anchors
@@ -522,11 +522,11 @@ def compare_fonts(font1, font2, path="font"):
                     val2 = getattr(anchor2, attr)
                     if val1 != val2:
                         differences.append(f"{apath}.{attr}: {val1} != {val2}")
-                if anchor1._formatspecific != anchor2._formatspecific:
+                if anchor1.user_data != anchor2.user_data:
                     differences.append(
-                        f"{apath}._formatspecific: "
-                        f"{anchor1._formatspecific} != "
-                        f"{anchor2._formatspecific}"
+                        f"{apath}.user_data: "
+                        f"{anchor1.user_data} != "
+                        f"{anchor2.user_data}"
                     )
 
     return differences
@@ -622,48 +622,48 @@ def test_field_aliases_in_files(comprehensive_font, tmp_path):
     assert master.guides[0].position.x == 0, "Position should have correct value"
 
 
-def test_formatspecific_roundtrip(comprehensive_font, tmp_path):
-    """Verify that _formatspecific data survives roundtrips on all objects."""
+def testuser_data_roundtrip(comprehensive_font, tmp_path):
+    """Verify that user_data data survives roundtrips on all objects."""
     # Save and reload
     font_path = tmp_path / "formatspecific_test.babelfont"
     comprehensive_font.save(str(font_path))
     font_loaded = load(str(font_path))
 
     # Check font level
-    assert font_loaded._formatspecific == comprehensive_font._formatspecific
+    assert font_loaded.user_data == comprehensive_font.user_data
 
     # Check axis level
-    assert font_loaded.axes[0]._formatspecific == {"com.test": "weight-data"}
+    assert font_loaded.axes[0].user_data == {"com.test": "weight-data"}
 
     # Check instance level
-    assert font_loaded.instances[0]._formatspecific == {"com.test": "instance-metadata"}
+    assert font_loaded.instances[0].user_data == {"com.test": "instance-metadata"}
 
     # Check master level
-    assert font_loaded.masters[0]._formatspecific == {"com.test": {"master": "data"}}
+    assert font_loaded.masters[0].user_data == {"com.test": {"master": "data"}}
 
     # Check glyph level
     glyph_a = next(g for g in font_loaded.glyphs if g.name == "A")
-    assert glyph_a._formatspecific == {"com.test": {"glyph": "metadata"}}
+    assert glyph_a.user_data == {"com.test": {"glyph": "metadata"}}
 
     # Check layer level
-    assert glyph_a.layers[0]._formatspecific == {"com.test": "layer-data"}
+    assert glyph_a.layers[0].user_data == {"com.test": "layer-data"}
 
     # Check shape level
     shape = glyph_a.layers[0].shapes[0]
-    assert shape._formatspecific == {"com.test": "shape-metadata"}
+    assert shape.user_data == {"com.test": "shape-metadata"}
 
     # Check node level (second node has formatspecific)
     node = glyph_a.layers[0].shapes[0].nodes[1]
-    assert node._formatspecific == {"com.test": "node-data"}
+    assert node.user_data == {"com.test": "node-data"}
 
     # Check anchor level
     anchor = glyph_a.layers[0].anchors[0]
-    assert anchor._formatspecific == {"com.test": "anchor-data"}
+    assert anchor.user_data == {"com.test": "anchor-data"}
 
     # Check component level
     glyph_aacute = next(g for g in font_loaded.glyphs if g.name == "Aacute")
     component = glyph_aacute.layers[0].shapes[0]
-    assert component._formatspecific == {"com.test": "component-data"}
+    assert component.user_data == {"com.test": "component-data"}
 
 
 def test_node_serialization_formats(tmp_path):
@@ -721,6 +721,6 @@ def test_node_serialization_formats(tmp_path):
     glyph_loaded = next(g for g in font_loaded.glyphs if g.name == "test")
     nodes_loaded = glyph_loaded.layers[0].shapes[0].nodes
 
-    assert nodes_loaded[0]._formatspecific == {}
-    assert nodes_loaded[1]._formatspecific == {"key": "value"}
-    assert nodes_loaded[2]._formatspecific == {}
+    assert nodes_loaded[0].user_data == {}
+    assert nodes_loaded[1].user_data == {"key": "value"}
+    assert nodes_loaded[2].user_data == {}
