@@ -11,6 +11,9 @@ class _GuideFields:
 
 @dataclass
 class Guide(BaseObject, _GuideFields):
+    # Map Python field names to their serialized names in files
+    _field_aliases = {"position": "pos"}
+
     def __post_init__(self):
         # Convert dict or list to Position if needed
         if isinstance(self.position, dict):

@@ -89,6 +89,12 @@ class BaseObject:
     # really used for initialization, so in ``__post_init__`` we move its
     # contents into the `_formatspecific` field where it really lives.
 
+    # Field aliasing: Classes can define a _field_aliases dict mapping Python
+    # field names to their serialized names in the file format. This allows
+    # the Python API to use clear names while maintaining backward compatibility
+    # with existing file formats.
+    _field_aliases = {}
+
     _formatspecific: dict = field(
         default_factory=dict,
         repr=False,
@@ -115,13 +121,33 @@ is exported not as `_formatspecific` but as a simple underscore (`_`).
         if self._:
             self._formatspecific = self._
         # Initialize dirty tracking (not part of dataclass fields)
-        # Only initialize if not already set (to avoid resetting in subclass __post_init__)
+        # Only initialize if not already set
         if not hasattr(self, "_dirty_flags"):
             object.__setattr__(self, "_dirty_flags", None)
         if not hasattr(self, "_dirty_fields"):
             object.__setattr__(self, "_dirty_fields", None)
         if not hasattr(self, "_parent_ref"):
             object.__setattr__(self, "_parent_ref", None)
+
+    @classmethod
+    def _normalize_fields(cls, data_dict):
+        """
+        Convert serialized field names to Python field names.
+        This allows the file format to use different names than the API.
+        """
+        if not isinstance(data_dict, dict):
+            return data_dict
+
+        # Create reverse mapping (serialized_name -> python_name)
+        reverse_aliases = {v: k for k, v in cls._field_aliases.items()}
+
+        normalized = {}
+        for key, value in data_dict.items():
+            # Use reverse alias if it exists, otherwise keep original
+            python_name = reverse_aliases.get(key, key)
+            normalized[python_name] = value
+
+        return normalized
 
     _write_one_line = False
     _separate_items = {}
@@ -297,7 +323,9 @@ is exported not as `_formatspecific` but as a simple underscore (`_`).
                 default and v == default
             ):
                 continue
-            towrite.append((k, v))
+            # Use alias for serialization if defined
+            serialized_name = self._field_aliases.get(k, k)
+            towrite.append((serialized_name, v))
 
         for ix, (k, v) in enumerate(towrite):
             if not self._write_one_line:

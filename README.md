@@ -58,3 +58,5 @@ node = Node(100, 200, "c", _={"custom": "data"})
 - `Guide.position` - guideline position (was `Guide.pos`)
 - `Shape.position` - component position (was `Shape.pos`)
 
+The file format continues to use `pos` for backward compatibility, while the Python API uses the clearer `position` name. This is handled automatically through BaseObject's field aliasing system (`_field_aliases`).
+

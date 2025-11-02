@@ -127,7 +127,7 @@ class Context(BaseConvertor):
             master = Master(**json_master)
             master.font = self.font
             master._set_parent(self.font)
-            master.guides = [Guide(**m) for m in master.guides]
+            master.guides = [Guide(**Guide._normalize_fields(m)) for m in master.guides]
             for guide in master.guides:
                 guide._set_parent(master)
             self.font.masters.append(master)
@@ -137,7 +137,7 @@ class Context(BaseConvertor):
         components = json_layer.pop("components", [])
 
         layer = Layer(**json_layer)
-        layer.guides = [Guide(**m) for m in layer.guides]
+        layer.guides = [Guide(**Guide._normalize_fields(m)) for m in layer.guides]
         layer.anchors = [Anchor(**m) for m in layer.anchors]
         layer._font = self.font
         # Set parent references for change tracking
