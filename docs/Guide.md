@@ -6,8 +6,8 @@ title: Guide
 
 ---
 
-Guide(pos: context.BaseObject.Position, name: str = None, color: context.BaseObject.Color = None, _formatspecific: dict = <factory>, _: dict = None)
-## Guide.pos
+Guide(position: context.BaseObject.Position, name: str = None, color: context.BaseObject.Color = None, _formatspecific: dict = <factory>, _: dict = None)
+## Guide.position
 
 * Python type: `Position`
 

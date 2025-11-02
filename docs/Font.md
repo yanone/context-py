@@ -85,7 +85,7 @@ A list of all glyphs supported in the font.
 
 The `GlyphList` structure in the Python object is a dictionary with array-like
 properties (or you might think of it as an array with dictionary-like properties)
-containing [`Glyph`](Glyph.html) objects. The `GlyphList` may be iterated
+containing [`Glyph`](Glyph.md) objects. The `GlyphList` may be iterated
 directly, and may be appended to, but may also be used to index a `Glyph` by
 its name. This is generally what you want:
 
@@ -132,6 +132,18 @@ to the current date/time*.
 * Python type: `Dict`
 
 Any values to be placed in OpenType tables on export to override defaults; these must be font-wide. Metrics which may vary by master should be placed in the `metrics` field of a Master.
+
+
+## Font.filename
+
+* Python type: `Optional[str]`
+
+* This field only exists as an attribute of the the Python object and should not be written to Context-JSON.
+
+The file path from which this font was loaded
+or to which it should be saved. This is automatically set when loading
+a font and used as the default path when saving.
+*If not provided, defaults to* `None`.
 
 
 ## Font.features
