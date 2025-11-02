@@ -299,13 +299,60 @@ class Font(_FontFields, BaseObject):
 
             try:
                 convertor = Convert(filename)
+                save_start = time.time()
                 result = Context.save(self, convertor, **kwargs)
+                save_duration = time.time() - save_start
+                print(f"  ⏱️ File write time: {save_duration:.3f}s")
             finally:
                 # Restore the original value
                 context.BaseObject._SKIP_USER_DATA_TRACKING = old_skip_value
 
             # Update the stored filename after successful save
             self.filename = filename
+            # Mark font clean after successful save
+            # OPTIMIZATION: Only mark objects that were actually dirty,
+            # rather than recursively traversing everything
+            from context.BaseObject import DIRTY_FILE_SAVING
+
+            mark_clean_start = time.time()
+
+            # Mark font itself clean (non-recursive)
+            self.mark_clean(DIRTY_FILE_SAVING, recursive=False)
+
+            # Only mark glyphs clean if they were dirty
+            # (Most glyphs are already clean after selective file writing)
+            dirty_glyph_count = 0
+            for glyph in self.glyphs:
+                if glyph.is_dirty(DIRTY_FILE_SAVING):
+                    glyph.mark_clean(DIRTY_FILE_SAVING, recursive=True)
+                    dirty_glyph_count += 1
+
+            # Mark other top-level objects clean if dirty
+            for master in self.masters:
+                if master.is_dirty(DIRTY_FILE_SAVING):
+                    master.mark_clean(DIRTY_FILE_SAVING, recursive=True)
+
+            for axis in self.axes:
+                if axis.is_dirty(DIRTY_FILE_SAVING):
+                    axis.mark_clean(DIRTY_FILE_SAVING, recursive=False)
+
+            for instance in self.instances:
+                if instance.is_dirty(DIRTY_FILE_SAVING):
+                    instance.mark_clean(DIRTY_FILE_SAVING, recursive=False)
+
+            if self.names.is_dirty(DIRTY_FILE_SAVING):
+                self.names.mark_clean(DIRTY_FILE_SAVING, recursive=False)
+
+            if self.features.is_dirty(DIRTY_FILE_SAVING):
+                self.features.mark_clean(DIRTY_FILE_SAVING, recursive=False)
+
+            mark_clean_duration = time.time() - mark_clean_start
+            if dirty_glyph_count > 0:
+                print(
+                    f"  ⏱️ mark_clean() time: {mark_clean_duration:.3f}s ({dirty_glyph_count} glyphs)"
+                )
+            else:
+                print(f"  ⏱️ mark_clean() time: {mark_clean_duration:.3f}s (all clean)")
 
             duration = time.time() - start_time
 

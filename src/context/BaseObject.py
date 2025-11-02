@@ -533,40 +533,36 @@ is exported not as `user_data` but as a simple underscore (`_`).
             if context.BaseObject._SKIP_USER_DATA_TRACKING:
                 return value
 
-            # Handle user_data access (only if not empty)
-            if value:
-                try:
-                    skip_check = object.__getattribute__(self, "_skip_user_data_check")
-                    if skip_check:
-                        return value
+            # Handle user_data access (both empty and non-empty)
+            try:
+                skip_check = object.__getattribute__(self, "_skip_user_data_check")
+                if skip_check:
+                    return value
 
-                    tracking_enabled = (
-                        object.__getattribute__(self, "_tracking_enabled")
-                        and object.__getattribute__(self, "_dirty_flags") is not None
-                    )
+                tracking_enabled = (
+                    object.__getattribute__(self, "_tracking_enabled")
+                    and object.__getattribute__(self, "_dirty_flags") is not None
+                )
 
-                    if tracking_enabled:
-                        # Lazy conversion: convert to TrackedDict on first access
-                        # Skip empty dicts to save memory and time
-                        if (
-                            isinstance(value, dict)
-                            and not isinstance(value, TrackedDict)
-                            and value  # Only convert non-empty dicts
-                        ):
-                            tracked = TrackedDict(owner=self)
+                if tracking_enabled:
+                    # Lazy conversion: convert to TrackedDict on first access
+                    # Convert both empty and non-empty dicts for consistency
+                    if isinstance(value, dict) and not isinstance(value, TrackedDict):
+                        tracked = TrackedDict(owner=self)
+                        if value:  # Only update if non-empty
                             tracked.update(value)
-                            object.__setattr__(self, "user_data", tracked)
-                            value = tracked
+                        object.__setattr__(self, "user_data", tracked)
+                        value = tracked
 
-                        # Check for nested changes (only if non-empty)
-                        if value:
-                            _check = object.__getattribute__(
-                                self, "_check_user_data_changed"
-                            )
-                            _check()
-                except AttributeError:
-                    # During initialization, these attrs might not exist
-                    pass
+                    # Check for nested changes (only if non-empty TrackedDict)
+                    if value and isinstance(value, TrackedDict):
+                        _check = object.__getattribute__(
+                            self, "_check_user_data_changed"
+                        )
+                        _check()
+            except AttributeError:
+                # During initialization, these attrs might not exist
+                pass
 
             return value
 

@@ -189,23 +189,146 @@ class Context(BaseConvertor):
                 self.font.features._set_parent(self.font)
 
     def _save(self):
+        """Save the font to disk."""
+        from context.BaseObject import DIRTY_FILE_SAVING
+
         path = Path(self.filename)
         path.mkdir(parents=True, exist_ok=True)
 
-        with open(path / "info.json", "wb") as f:
-            self.font.write(stream=f)
+        # Write info.json (contains font metadata, axes, instances, masters)
+        # Check if font's OWN fields are dirty (not propagated from children)
+        # info.json contains: upm, version, date, note,
+        # custom_opentype_values, first_kern_groups, second_kern_groups,
+        # axes, instances, masters
+        font_dirty_fields = self.font.get_dirty_fields(DIRTY_FILE_SAVING)
+        info_fields = {
+            "upm",
+            "version",
+            "date",
+            "note",
+            "custom_opentype_values",
+            "first_kern_groups",
+            "second_kern_groups",
+            "axes",
+            "instances",
+            "masters",
+        }
+        font_info_dirty = bool(font_dirty_fields & info_fields)
+        info_dirty = (
+            font_info_dirty
+            or any(axis.is_dirty(DIRTY_FILE_SAVING) for axis in self.font.axes)
+            or any(inst.is_dirty(DIRTY_FILE_SAVING) for inst in self.font.instances)
+            or any(master.is_dirty(DIRTY_FILE_SAVING) for master in self.font.masters)
+        )
+        info_file = path / "info.json"
+        if info_dirty or not info_file.exists():
+            reason = "dirty" if info_dirty else "new location"
+            print(f"  📝 Writing info.json ({reason})")
+            with open(info_file, "wb") as f:
+                self.font.write(stream=f)
+        else:
+            print("  ⏩ Skipping info.json (clean)")
 
-        with open(path / "names.json", "wb") as f:
-            self.font._write_value(f, "glyphs", self.font.names)
+        # Write names.json
+        names_dirty = self.font.names.is_dirty(DIRTY_FILE_SAVING)
+        names_file = path / "names.json"
+        if names_dirty or not names_file.exists():
+            reason = "dirty" if names_dirty else "new location"
+            print(f"  📝 Writing names.json ({reason})")
+            with open(names_file, "wb") as f:
+                self.font._write_value(f, "glyphs", self.font.names)
+        else:
+            print("  ⏩ Skipping names.json (clean)")
 
-        with open(path / "features.fea", "w") as f:
-            if self.font.features:
-                f.write(self.font.features.to_fea())
+        # Write features.fea
+        features_dirty = (
+            self.font.features.is_dirty(DIRTY_FILE_SAVING)
+            if self.font.features
+            else False
+        )
+        features_file = path / "features.fea"
+        if features_dirty or not features_file.exists():
+            reason = "dirty" if features_dirty else "new location"
+            print(f"  📝 Writing features.fea ({reason})")
+            with open(features_file, "w") as f:
+                if self.font.features:
+                    f.write(self.font.features.to_fea())
+        else:
+            print("  ⏩ Skipping features.fea (clean)")
 
-        with open(path / "glyphs.json", "wb") as f:
-            for g in self.font.glyphs:
-                glyphpath = path / "glyphs"
-                glyphpath.mkdir(parents=True, exist_ok=True)
-                with open(path / g.babelfont_filename, "wb") as f2:
+        # Write glyphs - only write individual glyph files if they're dirty
+        glyphpath = path / "glyphs"
+        glyphpath.mkdir(parents=True, exist_ok=True)
+
+        # Count glyphs written for statistics
+        dirty_count = 0
+        clean_count = 0
+
+        # Check if any glyph is dirty (needs individual file write)
+        for g in self.font.glyphs:
+            # Write glyph file if:
+            # 1. Glyph is dirty (changed), OR
+            # 2. Glyph file doesn't exist yet (new save location)
+            glyph_file = path / g.babelfont_filename
+            is_dirty = g.is_dirty(DIRTY_FILE_SAVING)
+            file_missing = not glyph_file.exists()
+            needs_write = is_dirty or file_missing
+
+            if needs_write:
+                reason = "dirty" if is_dirty else "new location"
+                print(f"  📝 Writing glyph: {g.name} ({reason})")
+                with open(glyph_file, "wb") as f2:
                     g._write_value(f2, "layers", g.layers)
-            self.font._write_value(f, "glyphs", self.font.glyphs)
+                dirty_count += 1
+            else:
+                clean_count += 1
+
+        # Only write glyphs.json if:
+        # 1. Font is dirty for "glyphs" field (glyphs added/removed), OR
+        # 2. Any glyph METADATA is dirty (name, codepoints, etc.), OR
+        # 3. glyphs.json doesn't exist yet (new save location)
+        # NOTE: glyphs.json only contains metadata, not layer data.
+        # Layer changes don't require glyphs.json to be rewritten.
+        glyphs_json_path = path / "glyphs.json"
+        # Check if the "glyphs" field was marked dirty (add/remove)
+        font_dirty_fields = self.font.get_dirty_fields(DIRTY_FILE_SAVING)
+        font_glyphs_dirty = "glyphs" in font_dirty_fields
+
+        # Check if any glyph's metadata fields are dirty
+        # Metadata fields: name, production_name, category, codepoints,
+        # exported, direction (layers are separate)
+        metadata_fields = {
+            "name",
+            "production_name",
+            "category",
+            "codepoints",
+            "exported",
+            "direction",
+        }
+        any_glyph_metadata_dirty = False
+        for g in self.font.glyphs:
+            glyph_dirty_fields = g.get_dirty_fields(DIRTY_FILE_SAVING)
+            if glyph_dirty_fields & metadata_fields:
+                any_glyph_metadata_dirty = True
+                break
+
+        file_missing = not glyphs_json_path.exists()
+
+        if font_glyphs_dirty or any_glyph_metadata_dirty or file_missing:
+            if font_glyphs_dirty:
+                reason = "font dirty"
+            elif any_glyph_metadata_dirty:
+                reason = "glyph metadata dirty"
+            else:
+                reason = "new location"
+            print(f"  📝 Writing glyphs.json ({reason})")
+            with open(glyphs_json_path, "wb") as f:
+                self.font._write_value(f, "glyphs", self.font.glyphs)
+        else:
+            print("  ⏩ Skipping glyphs.json (clean)")
+
+        # Report statistics
+        print(
+            f"  💾 Wrote {dirty_count} glyph file(s), "
+            f"skipped {clean_count} clean glyph(s)"
+        )

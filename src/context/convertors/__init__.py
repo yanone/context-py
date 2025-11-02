@@ -53,7 +53,7 @@ class BaseConvertor:
         # Pass on information to child
         self.filename = convertor.filename
         self.scratch = convertor.scratch
-        return self._save()
+        return self._save(**kwargs)
 
     def _load(self):
         raise NotImplementedError
