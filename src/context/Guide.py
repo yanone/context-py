@@ -20,4 +20,9 @@ class Guide(BaseObject, _GuideFields):
             self.position = Position(**self.position)
         elif isinstance(self.position, (list, tuple)):
             self.position = Position(*self.position)
+
+        # Convert list to Color if needed
+        if self.color and isinstance(self.color, (list, tuple)):
+            self.color = Color(*self.color)
+
         super().__post_init__()

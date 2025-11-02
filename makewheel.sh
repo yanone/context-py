@@ -4,6 +4,9 @@
 
 set -e
 
+echo "Test..."
+pytest
+
 echo "Rebuilding docs..."
 python makedoc.py
 

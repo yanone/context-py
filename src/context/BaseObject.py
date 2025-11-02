@@ -304,7 +304,9 @@ is exported not as `_formatspecific` but as a simple underscore (`_`).
                 stream.write(b"  " * (indent + 1))
             stream.write(b"]")
         elif isinstance(v, datetime.datetime):
-            stream.write('"{0}"'.format(v.__str__()).encode())
+            # Format without microseconds to match loader expectation
+            date_str = v.strftime("%Y-%m-%d %H:%M:%S")
+            stream.write('"{0}"'.format(date_str).encode())
         else:
             stream.write(orjson.dumps(v))
 
