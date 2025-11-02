@@ -58,7 +58,7 @@ def font_file(tmp_path):
     layer_a._font = font
 
     # Add guide to layer
-    guide = Guide(name="baseline", pos=Position(x=0, y=0, angle=0))
+    guide = Guide(name="baseline", position=Position(x=0, y=0, angle=0))
     guide._set_parent(layer_a)
     layer_a.guides.append(guide)
 
@@ -366,7 +366,7 @@ class TestShapeAndNodeTracking:
 
         # Verify the node itself is marked dirty
         assert node.is_dirty(DIRTY_FILE_SAVING)
-        
+
         # Verify propagation up the hierarchy happens automatically
         assert shape.is_dirty(DIRTY_FILE_SAVING)
         assert layer.is_dirty(DIRTY_FILE_SAVING)
@@ -503,7 +503,7 @@ class TestGuideTracking:
         simple_font.mark_clean(DIRTY_FILE_SAVING, recursive=True)
 
         # Modify guide position (Position is immutable, replace entire object)
-        guide.pos = Position(x=0, y=100, angle=0)
+        guide.position = Position(x=0, y=100, angle=0)
 
         # Should propagate: guide -> layer -> glyph -> font
         assert guide.is_dirty(DIRTY_FILE_SAVING)
@@ -513,7 +513,7 @@ class TestGuideTracking:
 
         # Verify field tracking
         dirty_fields = guide.get_dirty_fields(DIRTY_FILE_SAVING)
-        assert "pos" in dirty_fields
+        assert "position" in dirty_fields
 
     def test_guide_angle_change(self, simple_font):
         """Changing guide angle should mark it dirty."""
@@ -525,11 +525,11 @@ class TestGuideTracking:
         simple_font.mark_clean(DIRTY_FILE_SAVING, recursive=True)
 
         # Position is immutable, so replace entire object
-        guide.pos = Position(x=guide.pos.x, y=guide.pos.y, angle=90)
+        guide.position = Position(x=guide.position.x, y=guide.position.y, angle=90)
 
         assert guide.is_dirty(DIRTY_FILE_SAVING)
         dirty_fields = guide.get_dirty_fields(DIRTY_FILE_SAVING)
-        assert "pos" in dirty_fields
+        assert "position" in dirty_fields
 
 
 class TestMasterTracking:

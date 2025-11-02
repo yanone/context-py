@@ -49,7 +49,7 @@ class Shape(BaseObject, _ShapeFields):
         return self._layer.master.get_glyph_layer(self.ref)
 
     @property
-    def pos(self):
+    def position(self):
         assert self.is_component
         if not self.transform:
             return (0, 0)

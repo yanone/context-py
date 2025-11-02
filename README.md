@@ -54,3 +54,7 @@ This is useful when you need to provide context about Context's structure to an 
 node = Node(100, 200, "c", _={"custom": "data"})
 ```
 
+**Property Naming**: The abbreviated `pos` property has been renamed to `position` for clarity:
+- `Guide.position` - guideline position (was `Guide.pos`)
+- `Shape.position` - component position (was `Shape.pos`)
+
