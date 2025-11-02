@@ -160,11 +160,18 @@ class Context(BaseConvertor):
         shape._set_parent(layer)
         if shape.nodes:
             shape.nodes = [self._inflate_node(n) for n in shape.nodes]
-            # Nodes don't inherit from BaseObject, so no parent ref needed
+            for node in shape.nodes:
+                node._set_parent(shape)
         return shape
 
     def _inflate_node(self, n):
-        return Node(*n)
+        # n can be [x, y, type] or [x, y, type, formatspecific]
+        if len(n) == 3:
+            return Node(*n)
+        else:
+            # 4th element is format-specific data (dict or JSON)
+            x, y, node_type, formatspecific = n
+            return Node(x, y, node_type, _=formatspecific)
 
     def _load_metadata(self, info):
         for k in ["note", "upm", "version", "date", "customOpenTypeValues"]:

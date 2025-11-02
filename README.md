@@ -43,3 +43,14 @@ all_docs = generate_all_docs()
 
 This is useful when you need to provide context about Context's structure to an AI assistant.
 
+## Deviations from Babelfont
+
+### November 2nd 2025
+
+**Node Implementation**: Context's `Node` class inherits from `BaseObject` (unlike Babelfont), providing dirty tracking, parent references, and format-specific metadata. The `userdata` string field has been replaced with the standard `_formatspecific` dict:
+
+```python
+# Context style
+node = Node(100, 200, "c", _={"custom": "data"})
+```
+

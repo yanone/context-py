@@ -26,8 +26,9 @@ class _ShapeFields:
 class Shape(BaseObject, _ShapeFields):
     def _mark_children_clean(self, context):
         """Recursively mark children clean."""
-        # Nodes don't inherit from BaseObject, so nothing to clean
-        pass
+        if self.nodes:
+            for node in self.nodes:
+                node.mark_clean(context, recursive=True)
 
     @property
     def _write_one_line(self):

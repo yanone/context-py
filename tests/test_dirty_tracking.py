@@ -337,10 +337,9 @@ class TestShapeAndNodeTracking:
     def test_node_change_propagates_hierarchy(self, simple_font):
         """Node position changes should propagate up the hierarchy.
 
-        Note: Nodes don't inherit from BaseObject, so they don't have
-        parent references or dirty tracking. However, modifying node
-        attributes should mark the containing Shape dirty, which then
-        propagates to Layer, Glyph, and Font.
+        Nodes now inherit from BaseObject and have parent references,
+        so modifying node attributes automatically marks the node dirty,
+        which propagates through the parent Shape to Layer, Glyph, and Font.
         """
         # Get references to all levels from the loaded font
         font = simple_font
@@ -351,31 +350,32 @@ class TestShapeAndNodeTracking:
         assert len(layer.shapes) > 0
         shape = layer.shapes[0]
         assert len(shape.nodes) > 0
+        node = shape.nodes[0]
 
         # Clean everything (loaded fonts start clean for file_saving)
         font.mark_clean(DIRTY_FILE_SAVING, recursive=True)
+        assert not node.is_dirty(DIRTY_FILE_SAVING)
         assert not shape.is_dirty(DIRTY_FILE_SAVING)
         assert not layer.is_dirty(DIRTY_FILE_SAVING)
         assert not glyph.is_dirty(DIRTY_FILE_SAVING)
         assert not font.is_dirty(DIRTY_FILE_SAVING)
 
-        # Modify a node's position
-        # Since nodes don't track parents, we modify the node directly
-        shape.nodes[0].x = 50
+        # Modify a node's position - this should automatically propagate
+        original_x = node.x
+        node.x = original_x + 50
 
-        # Manually mark the shape dirty (in real usage, the UI would do this
-        # when it detects a node change)
-        shape.mark_dirty(DIRTY_FILE_SAVING, field_name="nodes")
-
-        # Verify propagation up the hierarchy
+        # Verify the node itself is marked dirty
+        assert node.is_dirty(DIRTY_FILE_SAVING)
+        
+        # Verify propagation up the hierarchy happens automatically
         assert shape.is_dirty(DIRTY_FILE_SAVING)
         assert layer.is_dirty(DIRTY_FILE_SAVING)
         assert glyph.is_dirty(DIRTY_FILE_SAVING)
         assert font.is_dirty(DIRTY_FILE_SAVING)
 
-        # Verify the field was tracked
-        dirty_fields = shape.get_dirty_fields(DIRTY_FILE_SAVING)
-        assert "nodes" in dirty_fields
+        # Verify the node field was tracked
+        dirty_fields = node.get_dirty_fields(DIRTY_FILE_SAVING)
+        assert "x" in dirty_fields
 
 
 class TestGlyphListTracking:
