@@ -37,7 +37,6 @@ class Context(BaseConvertor):
                 getattr(self.font.names, k).copy_in(v)
             elif k == "_":
                 self.font.names.user_data = v
-        # Set parent reference for names
         self.font.names._set_parent(self.font)
 
         self.font.axes = [Axis(**j) for j in info.get("axes", [])]
@@ -66,9 +65,9 @@ class Context(BaseConvertor):
         # Store the filename for later saving
         self.font.filename = self.filename
 
-        # Mark entire font as clean for file_saving since it matches disk state
-        # But keep dirty for canvas_render so UI knows to draw
-        self._mark_all_clean_for_file_saving(self.font)
+        # Note: We don't mark objects clean here because tracking isn't
+        # initialized during load. This will be handled in initialize_dirty_tracking()
+        # which sets the font as clean for FILE_SAVING after enabling tracking.
 
         return self.font
 
@@ -140,7 +139,6 @@ class Context(BaseConvertor):
         layer.guides = [Guide(**Guide._normalize_fields(m)) for m in layer.guides]
         layer.anchors = [Anchor(**m) for m in layer.anchors]
         layer._font = self.font
-        # Set parent references for change tracking
         for guide in layer.guides:
             guide._set_parent(layer)
         for anchor in layer.anchors:

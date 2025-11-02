@@ -182,19 +182,16 @@ is exported not as `user_data` but as a simple underscore (`_`).
     _: dict = field(default=None, repr=False, metadata={"skip_serialize": True})
 
     def __post_init__(self):
-        # Fast initialization during loading - no tracking overhead
+        # Fast initialization during loading - minimal overhead
         # Handle _ shorthand: copy to user_data if provided
         if self._ is not None:
             object.__setattr__(self, "user_data", self._)
 
-        # Initialize dirty tracking infrastructure (but tracking is disabled)
-        # These will be populated when initialize_dirty_tracking() is called
-        if not hasattr(self, "_dirty_flags"):
-            object.__setattr__(self, "_dirty_flags", None)
-        if not hasattr(self, "_dirty_fields"):
-            object.__setattr__(self, "_dirty_fields", None)
-        if not hasattr(self, "_parent_ref"):
-            object.__setattr__(self, "_parent_ref", None)
+        # Initialize tracking infrastructure to None (populated on tracking init)
+        # Simplified: no hasattr checks needed, __post_init__ always runs once
+        object.__setattr__(self, "_dirty_flags", None)
+        object.__setattr__(self, "_dirty_fields", None)
+        object.__setattr__(self, "_parent_ref", None)
 
     @classmethod
     def _normalize_fields(cls, data_dict):
@@ -298,42 +295,70 @@ is exported not as `user_data` but as a simple underscore (`_`).
         """
         pass
 
-    def __setattr__(self, name, value):
-        """Override setattr to automatically track changes."""
-        # Fast path: tracking disabled (during loading) or internal fields
+    @classmethod
+    def _enable_tracking_setattr(cls):
+        """
+        Enable dirty tracking by adding __setattr__ to the class.
+
+        This is called once when initialize_dirty_tracking() is first invoked.
+        By not defining __setattr__ in the class, we avoid overhead during
+        loading when tracking is not needed.
+        """
+        # Check if already enabled (avoid redefining)
         if (
-            not self._tracking_enabled
-            or name.startswith("_")
-            or not hasattr(self, "__dataclass_fields__")
+            hasattr(cls, "__setattr__")
+            and cls.__setattr__.__name__ == "tracked_setattr"
         ):
-            object.__setattr__(self, name, value)
             return
 
-        # Special handling for user_data field
-        if name == "user_data":
-            # Convert regular dict to TrackedDict
-            if isinstance(value, dict) and not isinstance(value, TrackedDict):
-                tracked = TrackedDict(owner=self)
-                tracked.update(value)
-                value = tracked
-            object.__setattr__(self, name, value)
-            # Mark dirty for all standard contexts
-            self.mark_dirty(DIRTY_FILE_SAVING, field_name=name, propagate=True)
-            self.mark_dirty(DIRTY_CANVAS_RENDER, field_name=name, propagate=True)
-            return
-
-        # Only track if the field exists and value actually changed
-        if name in self.__dataclass_fields__:
-            old_value = getattr(self, name, None)
-            if old_value != value:
+        def tracked_setattr(self, name, value):
+            """Override setattr to automatically track changes."""
+            # Fast path for internal fields
+            if name.startswith("_") or not hasattr(self, "__dataclass_fields__"):
                 object.__setattr__(self, name, value)
-                # Mark dirty for all standard contexts
-                self.mark_dirty(DIRTY_FILE_SAVING, field_name=name, propagate=True)
-                self.mark_dirty(DIRTY_CANVAS_RENDER, field_name=name, propagate=True)
+                return
+
+            # Check if tracking is initialized (avoid errors during __init__)
+            tracking_enabled = (
+                hasattr(self, "_dirty_flags") and self._dirty_flags is not None
+            )
+
+            # Special handling for user_data field
+            if name == "user_data":
+                # Convert regular dict to TrackedDict
+                if isinstance(value, dict) and not isinstance(value, TrackedDict):
+                    tracked = TrackedDict(owner=self)
+                    tracked.update(value)
+                    value = tracked
+                object.__setattr__(self, name, value)
+                # Mark dirty for all standard contexts (only if tracking enabled)
+                if tracking_enabled:
+                    self.mark_dirty(DIRTY_FILE_SAVING, field_name=name, propagate=True)
+                    self.mark_dirty(
+                        DIRTY_CANVAS_RENDER, field_name=name, propagate=True
+                    )
+                return
+
+            # Only track if the field exists and value actually changed
+            if name in self.__dataclass_fields__:
+                old_value = getattr(self, name, None)
+                if old_value != value:
+                    object.__setattr__(self, name, value)
+                    # Mark dirty for all standard contexts (only if tracking enabled)
+                    if tracking_enabled:
+                        self.mark_dirty(
+                            DIRTY_FILE_SAVING, field_name=name, propagate=True
+                        )
+                        self.mark_dirty(
+                            DIRTY_CANVAS_RENDER, field_name=name, propagate=True
+                        )
+                else:
+                    object.__setattr__(self, name, value)
             else:
                 object.__setattr__(self, name, value)
-        else:
-            object.__setattr__(self, name, value)
+
+        # Add __setattr__ to the class (affects all instances)
+        cls.__setattr__ = tracked_setattr
 
     def _should_separate_when_serializing(self, key):
         if (

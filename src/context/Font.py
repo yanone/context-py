@@ -146,7 +146,11 @@ class Font(_FontFields, BaseObject):
         Sets the font as clean for FILE_SAVING (matches disk state)
         and dirty for CANVAS_RENDER (needs initial render).
         """
-        from context.BaseObject import TrackedDict
+        from context.BaseObject import BaseObject, TrackedDict
+
+        # Enable __setattr__ on BaseObject class (one-time operation)
+        # This adds dirty tracking to all BaseObject instances
+        BaseObject._enable_tracking_setattr()
 
         def enable_tracking_recursive(obj):
             """Recursively enable tracking on object and children."""
@@ -162,18 +166,18 @@ class Font(_FontFields, BaseObject):
             if obj._dirty_fields is None:
                 object.__setattr__(obj, "_dirty_fields", {})
 
-            # Convert user_data to TrackedDict (even if empty, for future modifications)
+            # Convert user_data to TrackedDict
             if (
                 hasattr(obj, "user_data")
                 and isinstance(obj.user_data, dict)
                 and not isinstance(obj.user_data, TrackedDict)
             ):
-                # Use dict.update() to avoid triggering dirty tracking during init
+                # Use dict.update() to avoid triggering dirty tracking
                 tracked = TrackedDict(owner=obj)
                 dict.update(tracked, obj.user_data)
                 object.__setattr__(obj, "user_data", tracked)
 
-            # Recursively process children based on object type
+            # Recursively process children
             if hasattr(obj, "glyphs"):
                 for glyph in obj.glyphs:
                     enable_tracking_recursive(glyph)
@@ -211,8 +215,12 @@ class Font(_FontFields, BaseObject):
 
         # Set initial dirty states for loaded font
         # Clean for FILE_SAVING (matches disk), dirty for CANVAS_RENDER
-        from context.BaseObject import DIRTY_CANVAS_RENDER
+        from context.BaseObject import DIRTY_CANVAS_RENDER, DIRTY_FILE_SAVING
 
+        # Mark entire font as clean for file_saving (matches disk state)
+        self.mark_clean(DIRTY_FILE_SAVING, recursive=True)
+
+        # Mark as dirty for canvas render (needs initial render)
         self.mark_dirty(DIRTY_CANVAS_RENDER, propagate=False)
 
     def _mark_children_clean(self, context):
