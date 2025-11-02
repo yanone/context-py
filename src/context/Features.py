@@ -82,7 +82,8 @@ class Features(BaseObject):
                         brace_count += curr_line.count("{") - curr_line.count("}")
 
                         if brace_count > 0:
-                            feature_code += curr_line + "\n"
+                            # Strip trailing whitespace from each line
+                            feature_code += curr_line.rstrip() + "\n"
                         i += 1
 
                     features.features.append((feature_name, feature_code.rstrip()))
@@ -92,7 +93,8 @@ class Features(BaseObject):
             if line:  # Skip empty lines
                 if currentPrefix not in features.prefixes:
                     features.prefixes[currentPrefix] = ""
-                features.prefixes[currentPrefix] += lines[i] + "\n"
+                # Strip trailing whitespace from each line
+                features.prefixes[currentPrefix] += lines[i].rstrip() + "\n"
 
             i += 1
 
