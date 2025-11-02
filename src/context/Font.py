@@ -137,6 +137,10 @@ class Font(_FontFields, BaseObject):
         # Set parent for names, features
         self.names._set_parent(self)
         self.features._set_parent(self)
+        # Initialize callback lists
+        object.__setattr__(
+            self, "_callbacks", {"before_save": [], "after_save": [], "on_error": []}
+        )
 
     def initialize_dirty_tracking(self):
         """
@@ -243,6 +247,46 @@ class Font(_FontFields, BaseObject):
             len(self.masters),
         )
 
+    def register_callback(self, event: str, callback):
+        """Register a callback function to be called during operations.
+
+        Args:
+            event: Event name (e.g., 'before_save', 'after_save', 'on_error')
+            callback: A callable that will be invoked at the specified event.
+                     Signature depends on the event type.
+        """
+        if event not in self._callbacks:
+            raise ValueError(
+                f"Invalid event: {event}. Must be one of: "
+                f"{', '.join(self._callbacks.keys())}"
+            )
+        self._callbacks[event].append(callback)
+
+    def unregister_callback(self, event: str, callback):
+        """Remove a previously registered callback.
+
+        Args:
+            event: The event type the callback was registered for
+            callback: The callback function to remove
+        """
+        if event in self._callbacks:
+            try:
+                self._callbacks[event].remove(callback)
+            except ValueError:
+                pass  # Callback not in list, ignore
+
+    def clear_callbacks(self, event: str = None):
+        """Clear all callbacks for a specific event or all events.
+
+        Args:
+            event: Optional event type to clear. If None, clears all.
+        """
+        if event is None:
+            for callbacks in self._callbacks.values():
+                callbacks.clear()
+        elif event in self._callbacks:
+            self._callbacks[event].clear()
+
     def save(self, filename: str = None, **kwargs):
         """Save the font to a Context format file. Any additional keyword
         arguments are passed to the save method of the Context converter.
@@ -251,6 +295,7 @@ class Font(_FontFields, BaseObject):
             filename: Path to save the font. If not provided, uses the font's
                      stored filename (from where it was loaded).
         """
+        import time
         from context.convertors.nfsf import Context
         from context.convertors import Convert
 
@@ -260,13 +305,42 @@ class Font(_FontFields, BaseObject):
                 raise ValueError("No filename provided and font has no stored filename")
             filename = self.filename
 
-        convertor = Convert(filename)
-        result = Context.save(self, convertor, **kwargs)
+        # Call before_save callbacks
+        for callback in self._callbacks.get("before_save", []):
+            try:
+                callback(self, filename)
+            except Exception as e:
+                log.error(f"Error in before_save callback: {e}")
 
-        # Update the stored filename after successful save
-        self.filename = filename
+        # Perform the save operation
+        start_time = time.time()
+        try:
+            convertor = Convert(filename)
+            result = Context.save(self, convertor, **kwargs)
 
-        return result
+            # Update the stored filename after successful save
+            self.filename = filename
+
+            duration = time.time() - start_time
+
+            # Call after_save callbacks
+            for callback in self._callbacks.get("after_save", []):
+                try:
+                    callback(self, filename, duration)
+                except Exception as e:
+                    log.error(f"Error in after_save callback: {e}")
+
+            return result
+
+        except Exception as error:
+            # Call on_error callbacks
+            for callback in self._callbacks.get("on_error", []):
+                try:
+                    callback(self, filename, error)
+                except Exception as e:
+                    log.error(f"Error in on_error callback: {e}")
+            # Re-raise the original error
+            raise
 
     def master(self, mid: str) -> Optional[Master]:
         """Locates a master by its ID. Returns `None` if not found."""
