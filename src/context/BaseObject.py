@@ -20,6 +20,9 @@ DIRTY_CANVAS_RENDER = "canvas_render"
 DIRTY_UNDO = "undo"
 DIRTY_COMPILE = "compile"
 
+# Global flag to skip user_data tracking during serialization
+_SKIP_USER_DATA_TRACKING = False
+
 
 class TrackedDict(dict):
     """
@@ -524,6 +527,12 @@ is exported not as `user_data` but as a simple underscore (`_`).
             if name != "user_data":
                 return value
 
+            # Skip tracking during serialization (performance optimization)
+            import context.BaseObject
+
+            if context.BaseObject._SKIP_USER_DATA_TRACKING:
+                return value
+
             # Handle user_data access (only if not empty)
             if value:
                 try:
@@ -565,12 +574,21 @@ is exported not as `user_data` but as a simple underscore (`_`).
         cls.__getattribute__ = tracked_getattribute
 
     def _should_separate_when_serializing(self, key):
-        if (
+        # Cache the result to avoid repeated dictionary lookups
+        cache_attr = "_separate_cache"
+        if not hasattr(self, cache_attr):
+            object.__setattr__(self, cache_attr, {})
+
+        cache = object.__getattribute__(self, cache_attr)
+        if key in cache:
+            return cache[key]
+
+        result = (
             key in self.__dataclass_fields__
             and "separate_items" in self.__dataclass_fields__[key].metadata
-        ):
-            return True
-        return False
+        )
+        cache[key] = result
+        return result
 
     def _write_value(self, stream, k, v, indent=0):
         if hasattr(v, "write"):
@@ -624,7 +642,11 @@ is exported not as `user_data` but as a simple underscore (`_`).
             stream.write(b"  " * indent)
         stream.write(b"{")
         towrite = []
-        for f in fields(self):
+        # Cache fields() result at class level for performance
+        cls = type(self)
+        if not hasattr(cls, "_cached_fields"):
+            cls._cached_fields = fields(self)
+        for f in cls._cached_fields:
             k = f.name
             if "skip_serialize" in f.metadata or "python_only" in f.metadata:
                 continue

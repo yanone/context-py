@@ -291,8 +291,18 @@ class Font(_FontFields, BaseObject):
         # Perform the save operation
         start_time = time.time()
         try:
-            convertor = Convert(filename)
-            result = Context.save(self, convertor, **kwargs)
+            # Disable user_data tracking during serialization for performance
+            import context.BaseObject
+
+            old_skip_value = context.BaseObject._SKIP_USER_DATA_TRACKING
+            context.BaseObject._SKIP_USER_DATA_TRACKING = True
+
+            try:
+                convertor = Convert(filename)
+                result = Context.save(self, convertor, **kwargs)
+            finally:
+                # Restore the original value
+                context.BaseObject._SKIP_USER_DATA_TRACKING = old_skip_value
 
             # Update the stored filename after successful save
             self.filename = filename
