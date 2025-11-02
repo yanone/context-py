@@ -4,6 +4,9 @@
 
 set -e
 
+echo "Rebuilding docs..."
+python makedoc.py
+
 echo "Building context-py wheel for Pyodide..."
 
 # Ensure we have the correct build version
