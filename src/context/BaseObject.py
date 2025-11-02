@@ -520,8 +520,12 @@ is exported not as `user_data` but as a simple underscore (`_`).
             # Get the attribute using default mechanism
             value = object.__getattribute__(self, name)
 
-            # Handle user_data access
-            if name == "user_data" and value is not None:
+            # Early exit: Only process user_data
+            if name != "user_data":
+                return value
+
+            # Handle user_data access (only if not empty)
+            if value:
                 try:
                     skip_check = object.__getattribute__(self, "_skip_user_data_check")
                     if skip_check:
@@ -534,19 +538,23 @@ is exported not as `user_data` but as a simple underscore (`_`).
 
                     if tracking_enabled:
                         # Lazy conversion: convert to TrackedDict on first access
-                        if isinstance(value, dict) and not isinstance(
-                            value, TrackedDict
+                        # Skip empty dicts to save memory and time
+                        if (
+                            isinstance(value, dict)
+                            and not isinstance(value, TrackedDict)
+                            and value  # Only convert non-empty dicts
                         ):
                             tracked = TrackedDict(owner=self)
                             tracked.update(value)
                             object.__setattr__(self, "user_data", tracked)
                             value = tracked
 
-                        # Check for nested changes
-                        _check = object.__getattribute__(
-                            self, "_check_user_data_changed"
-                        )
-                        _check()
+                        # Check for nested changes (only if non-empty)
+                        if value:
+                            _check = object.__getattribute__(
+                                self, "_check_user_data_changed"
+                            )
+                            _check()
                 except AttributeError:
                     # During initialization, these attrs might not exist
                     pass
