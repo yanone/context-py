@@ -24,7 +24,8 @@ class Context(BaseConvertor):
     suffix = ".babelfont"
 
     def _load_file(self, filename):
-        contents = open(os.path.join(self.filename, filename), "r").read()
+        with open(os.path.join(self.filename, filename), "r") as f:
+            contents = f.read()
         return orjson.loads(contents)
 
     def _load(self):

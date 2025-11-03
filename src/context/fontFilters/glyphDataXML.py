@@ -16,7 +16,8 @@ def bake_in_glyphdata(font: Font, args=None):
     else:
         file = args["file"]
 
-    parsed = ElementTree.parse(open(file, "rb")).getroot()
+    with open(file, "rb") as f:
+        parsed = ElementTree.parse(f).getroot()
     for glyph in parsed:
         data = glyph.attrib
         if data["name"] not in font.glyphs:
