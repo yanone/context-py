@@ -37,20 +37,24 @@ class Glyph(BaseObject, _GlyphFields):
 class GlyphList(dict):
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        self._parent_font = None
+        self._parent_font_ref = None
 
     def _set_parent_font(self, font):
-        """Set the parent font for dirty tracking."""
-        self._parent_font = font
+        """Set the parent font for dirty tracking using weak reference."""
+        import weakref
+
+        self._parent_font_ref = weakref.ref(font) if font else None
 
     def append(self, thing):
         self[thing.name] = thing
         # Mark font dirty when glyph is added
-        if self._parent_font:
+        if self._parent_font_ref:
             from .BaseObject import DIRTY_FILE_SAVING, DIRTY_CANVAS_RENDER
 
-            self._parent_font.mark_dirty(DIRTY_FILE_SAVING, field_name="glyphs")
-            self._parent_font.mark_dirty(DIRTY_CANVAS_RENDER, field_name="glyphs")
+            font = self._parent_font_ref()
+            if font:
+                font.mark_dirty(DIRTY_FILE_SAVING, field_name="glyphs")
+                font.mark_dirty(DIRTY_CANVAS_RENDER, field_name="glyphs")
 
     def write(self, stream, indent):
         stream.write(b"[")

@@ -41,16 +41,50 @@ class _LayerFields:
     background: Optional[str] = field(default=None, repr=False)
     isBackground: bool = field(default=False, repr=False)
     location: List[float] = None
-    _font: Optional["Font"] = field(
-        default=None, repr=False, metadata={"python_only": True}
-    )
-    _glyph: Optional["Glyph"] = field(
-        default=None, repr=False, metadata={"python_only": True}
-    )
+    # Note: _font and _glyph are stored as weak references in __post_init__
+    # to avoid circular reference memory leaks
 
 
 @dataclass
 class Layer(BaseObject, _LayerFields):
+    def __post_init__(self):
+        super().__post_init__()
+        # Initialize weak reference holders
+        import weakref
+
+        if not hasattr(self, "_font_ref"):
+            object.__setattr__(self, "_font_ref", None)
+        if not hasattr(self, "_glyph_ref"):
+            object.__setattr__(self, "_glyph_ref", None)
+
+    @property
+    def _font(self):
+        """Get font via weak reference."""
+        if self._font_ref:
+            return self._font_ref()
+        return None
+
+    @_font.setter
+    def _font(self, font):
+        """Set font using weak reference to avoid circular references."""
+        import weakref
+
+        object.__setattr__(self, "_font_ref", weakref.ref(font) if font else None)
+
+    @property
+    def _glyph(self):
+        """Get glyph via weak reference."""
+        if self._glyph_ref:
+            return self._glyph_ref()
+        return None
+
+    @_glyph.setter
+    def _glyph(self, glyph):
+        """Set glyph using weak reference to avoid circular references."""
+        import weakref
+
+        object.__setattr__(self, "_glyph_ref", weakref.ref(glyph) if glyph else None)
+
     def _mark_children_clean(self, context):
         """Recursively mark children clean."""
         for shape in self.shapes:
@@ -62,10 +96,11 @@ class Layer(BaseObject, _LayerFields):
 
     @property
     def master(self):
-        assert self._font
+        font = self._font
+        assert font
         if not self._master:
             return None
-        return self._font.master(self._master)
+        return font.master(self._master)
 
     @property
     def paths(self) -> List[Shape]:
