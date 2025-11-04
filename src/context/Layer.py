@@ -32,6 +32,22 @@ if TYPE_CHECKING:
 class Layer(BaseObject):
     """A layer in a glyph with shapes, anchors, and guides."""
 
+    # Define validation rules for each field
+    _field_types = {
+        "width": {
+            "data_type": int,
+        },
+        "height": {
+            "data_type": int,
+        },
+        "vertWidth": {
+            "data_type": int,
+        },
+        "name": {
+            "data_type": str,
+        },
+    }
+
     def __init__(
         self,
         width=0,
@@ -96,9 +112,7 @@ class Layer(BaseObject):
     def width(self, value):
         old_value = self._data.get("width", 0)
         if old_value != value:
-            self._data["width"] = value
-            if self._tracking_enabled:
-                self.mark_dirty()
+            self._set_field("width", value)
         else:
             self._data["width"] = value
 
@@ -108,9 +122,7 @@ class Layer(BaseObject):
 
     @height.setter
     def height(self, value):
-        self._data["height"] = value
-        if self._tracking_enabled:
-            self.mark_dirty()
+        self._set_field("height", value)
 
     @property
     def vertWidth(self):
@@ -118,9 +130,12 @@ class Layer(BaseObject):
 
     @vertWidth.setter
     def vertWidth(self, value):
-        self._data["vertWidth"] = value
-        if self._tracking_enabled:
-            self.mark_dirty()
+        if value is not None:
+            self._set_field("vertWidth", value)
+        else:
+            self._data["vertWidth"] = value
+            if self._tracking_enabled:
+                self.mark_dirty()
 
     @property
     def name(self):
@@ -128,9 +143,12 @@ class Layer(BaseObject):
 
     @name.setter
     def name(self, value):
-        self._data["name"] = value
-        if self._tracking_enabled:
-            self.mark_dirty()
+        if value is not None:
+            self._set_field("name", value)
+        else:
+            self._data["name"] = value
+            if self._tracking_enabled:
+                self.mark_dirty()
 
     @property
     def _master(self):

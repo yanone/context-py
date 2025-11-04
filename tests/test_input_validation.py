@@ -5,7 +5,7 @@ Tests type checking and allowed values for property setters.
 """
 
 import pytest
-from context import Anchor, Guide, Node
+from context import Anchor, Guide, Layer, Node, Shape
 
 
 class TestNodeValidation:
@@ -208,3 +208,131 @@ class TestAnchorValidation:
             anchor.y = "200"
         with pytest.raises(ValueError, match="must be int"):
             anchor.y = None
+
+
+class TestShapeValidation:
+    """Test Shape property validation."""
+
+    def test_ref_accepts_valid_string(self):
+        """ref should accept string values."""
+        shape = Shape()
+        shape.ref = "a"
+        assert shape.ref == "a"
+        shape.ref = ""
+        assert shape.ref == ""
+
+    def test_ref_rejects_invalid_types(self):
+        """ref should reject non-string types."""
+        shape = Shape()
+        with pytest.raises(ValueError, match="must be str"):
+            shape.ref = 123
+        with pytest.raises(ValueError, match="must be str"):
+            shape.ref = None
+
+    def test_closed_accepts_valid_bool(self):
+        """closed should accept boolean values."""
+        shape = Shape()
+        shape.closed = True
+        assert shape.closed is True
+        shape.closed = False
+        assert shape.closed is False
+
+    def test_closed_rejects_invalid_types(self):
+        """closed should reject non-boolean types."""
+        shape = Shape()
+        with pytest.raises(ValueError, match="must be bool"):
+            shape.closed = 1
+        with pytest.raises(ValueError, match="must be bool"):
+            shape.closed = "True"
+
+    def test_direction_accepts_valid_values(self):
+        """direction should accept 1 or -1."""
+        shape = Shape()
+        shape.direction = 1
+        assert shape.direction == 1
+        shape.direction = -1
+        assert shape.direction == -1
+
+    def test_direction_rejects_invalid_values(self):
+        """direction should reject values other than 1 or -1."""
+        shape = Shape()
+        with pytest.raises(ValueError, match="must be one of"):
+            shape.direction = 0
+        with pytest.raises(ValueError, match="must be one of"):
+            shape.direction = 2
+
+    def test_direction_rejects_invalid_types(self):
+        """direction should reject non-integer types."""
+        shape = Shape()
+        with pytest.raises(ValueError, match="must be int"):
+            shape.direction = 1.0
+        with pytest.raises(ValueError, match="must be int"):
+            shape.direction = "1"
+
+
+class TestLayerValidation:
+    """Test Layer property validation."""
+
+    def test_width_accepts_valid_int(self):
+        """width should accept integer values."""
+        layer = Layer()
+        layer.width = 600
+        assert layer.width == 600
+        layer.width = 0
+        assert layer.width == 0
+
+    def test_width_rejects_invalid_types(self):
+        """width should reject non-integer types including floats."""
+        layer = Layer()
+        with pytest.raises(ValueError, match="must be int"):
+            layer.width = 600.5
+        with pytest.raises(ValueError, match="must be int"):
+            layer.width = "600"
+
+    def test_height_accepts_valid_int(self):
+        """height should accept integer values."""
+        layer = Layer()
+        layer.height = 800
+        assert layer.height == 800
+        layer.height = 0
+        assert layer.height == 0
+
+    def test_height_rejects_invalid_types(self):
+        """height should reject non-integer types including floats."""
+        layer = Layer()
+        with pytest.raises(ValueError, match="must be int"):
+            layer.height = 800.5
+        with pytest.raises(ValueError, match="must be int"):
+            layer.height = "800"
+
+    def test_vertWidth_accepts_valid_int(self):
+        """vertWidth should accept integer values and None."""
+        layer = Layer()
+        layer.vertWidth = 1000
+        assert layer.vertWidth == 1000
+        layer.vertWidth = None
+        assert layer.vertWidth is None
+
+    def test_vertWidth_rejects_invalid_types(self):
+        """vertWidth should reject non-integer types (except None)."""
+        layer = Layer()
+        with pytest.raises(ValueError, match="must be int"):
+            layer.vertWidth = 1000.5
+        with pytest.raises(ValueError, match="must be int"):
+            layer.vertWidth = "1000"
+
+    def test_name_accepts_valid_string(self):
+        """name should accept string values and None."""
+        layer = Layer()
+        layer.name = "Bold"
+        assert layer.name == "Bold"
+        layer.name = None
+        assert layer.name is None
+
+    def test_name_rejects_invalid_types(self):
+        """name should reject non-string types (except None)."""
+        layer = Layer()
+        with pytest.raises(ValueError, match="must be str"):
+            layer.name = 123
+        with pytest.raises(ValueError, match="must be str"):
+            layer.name = []

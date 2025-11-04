@@ -16,6 +16,20 @@ if TYPE_CHECKING:
 class Shape(BaseObject):
     """A shape in a glyph layer - either a path or component reference."""
 
+    # Define validation rules for each field
+    _field_types = {
+        "ref": {
+            "data_type": str,
+        },
+        "closed": {
+            "data_type": bool,
+        },
+        "direction": {
+            "data_type": int,
+            "allowed_values": [-1, 1],
+        },
+    }
+
     def __init__(
         self,
         ref=None,
@@ -51,9 +65,7 @@ class Shape(BaseObject):
 
     @ref.setter
     def ref(self, value):
-        self._data["ref"] = value
-        if self._tracking_enabled:
-            self.mark_dirty()
+        self._set_field("ref", value)
 
     @property
     def transform(self):
@@ -123,9 +135,7 @@ class Shape(BaseObject):
 
     @closed.setter
     def closed(self, value):
-        self._data["closed"] = value
-        if self._tracking_enabled:
-            self.mark_dirty()
+        self._set_field("closed", value)
 
     @property
     def direction(self):
@@ -133,9 +143,7 @@ class Shape(BaseObject):
 
     @direction.setter
     def direction(self, value):
-        self._data["direction"] = value
-        if self._tracking_enabled:
-            self.mark_dirty()
+        self._set_field("direction", value)
 
     @property
     def _layer(self):
