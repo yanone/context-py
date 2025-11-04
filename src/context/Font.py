@@ -440,23 +440,19 @@ class Font(BaseObject):
         # OPTIMIZATION: Don't create any objects during mark_clean!
         # All objects (glyphs, layers, shapes, etc.) will be created lazily
         # when first accessed. This makes initialization nearly instant.
-        
+
         # Only mark already-instantiated objects
         for glyph_name, glyph_data in self.glyphs.items():
-            if hasattr(glyph_data, 'mark_clean'):
+            if hasattr(glyph_data, "mark_clean"):
                 # Already a Glyph object - mark it clean
-                glyph_data.mark_clean(
-                    context, recursive=True, build_cache=build_cache
-                )
-        
+                glyph_data.mark_clean(context, recursive=True, build_cache=build_cache)
+
         # Masters, axes, instances are stored as dicts - skip them
         # They'll be marked clean when converted to objects via properties
-        
+
         # Clean names and features (these are always objects, not dicts)
         self.names.mark_clean(context, recursive=False, build_cache=build_cache)
-        self.features.mark_clean(
-            context, recursive=False, build_cache=build_cache
-        )
+        self.features.mark_clean(context, recursive=False, build_cache=build_cache)
 
     def __repr__(self):
         return "<Font '%s' (%i masters)>" % (

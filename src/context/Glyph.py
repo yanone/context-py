@@ -139,18 +139,16 @@ class Glyph(BaseObject):
         # Don't create Layer objects during mark_clean!
         # Layers (and their shapes/anchors/guides) will be created lazily
         # when first accessed via self.layers property
-        
+
         # Only mark already-instantiated Layer objects
         layers_data = self._data.get("layers", [])
         for layer_data in layers_data:
             if isinstance(layer_data, dict):
                 # Skip dicts - don't create Layer objects yet
                 pass
-            elif hasattr(layer_data, 'mark_clean'):
+            elif hasattr(layer_data, "mark_clean"):
                 # Already a Layer object - mark it clean
-                layer_data.mark_clean(
-                    context, recursive=True, build_cache=build_cache
-                )
+                layer_data.mark_clean(context, recursive=True, build_cache=build_cache)
 
     @property
     def babelfont_filename(self):
