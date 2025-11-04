@@ -107,3 +107,15 @@ class Instance(BaseObject):
     @property
     def postScriptFontName(self):
         return self.customNames.postscriptName.as_fonttools_dict
+
+    def to_dict(self, use_cache=True):
+        """
+        Convert instance to dictionary, properly serializing customNames.
+        """
+        result = super().to_dict(use_cache=use_cache)
+
+        # Serialize customNames if it's a Names object
+        if "customNames" in result and isinstance(result["customNames"], Names):
+            result["customNames"] = result["customNames"].to_dict(use_cache=use_cache)
+
+        return result

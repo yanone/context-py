@@ -233,6 +233,32 @@ class Master(BaseObject):
             return False
         return True
 
+    def to_dict(self, use_cache=True):
+        """
+        Convert master to dictionary, serializing kerning tuple keys.
+        """
+        result = super().to_dict(use_cache=use_cache)
+
+        # Convert kerning tuple keys to string format for JSON serialization
+        if "kerning" in result and result["kerning"]:
+            kerning = {}
+            for k, v in result["kerning"].items():
+                # Convert tuple ("a", "b") to string "a//b"
+                if isinstance(k, tuple):
+                    kerning["//".join(k)] = v
+                else:
+                    kerning[k] = v
+            result["kerning"] = kerning
+
+        # Serialize guides
+        if "guides" in result and result["guides"]:
+            result["guides"] = [
+                g.to_dict(use_cache=use_cache) if hasattr(g, "to_dict") else g
+                for g in result["guides"]
+            ]
+
+        return result
+
     @classmethod
     def from_dict(cls, data):
         """Create Master from dictionary, handling guides and kerning."""
