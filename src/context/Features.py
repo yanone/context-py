@@ -1,6 +1,5 @@
 import re
-from dataclasses import dataclass, field
-from typing import TYPE_CHECKING, Any, Dict, List, Tuple
+from typing import TYPE_CHECKING, Any, Dict
 
 from .BaseObject import BaseObject
 
@@ -11,31 +10,53 @@ PREFIX_MARKER = "# Prefix: "
 PREFIX_RE = re.compile(r"# Prefix: (.*)")
 
 
-@dataclass
 class Features(BaseObject):
     """A representation of the OpenType feature code."""
 
-    classes: Dict[str, List[str]] = field(
-        default_factory=dict,
-        metadata={
-            "separate_items": True,
-            "description": "A dictionary of classes. Each group is a list of glyph names or class names. The key should not start with @.",
-        },
-    )
-    prefixes: Dict[str, str] = field(
-        default_factory=dict,
-        metadata={
-            "separate_items": True,
-            "description": "A dictionary of OpenType lookups and other feature code to be placed before features are defined. The keys are user-defined names, the values are AFDKO feature code.",
-        },
-    )
-    features: List[Tuple[str, str]] = field(
-        default_factory=list,
-        metadata={
-            "separate_items": True,
-            "description": "A list of OpenType feature code, expressed as a tuple (feature tag, code).",
-        },
-    )
+    def __init__(
+        self, classes=None, prefixes=None, features=None, _data=None, **kwargs
+    ):
+        """Initialize Features with dict-backed storage."""
+        if _data is not None:
+            super().__init__(_data=_data)
+        else:
+            data = {
+                "classes": classes or {},
+                "prefixes": prefixes or {},
+                "features": features or [],
+            }
+            data.update(kwargs)
+            super().__init__(_data=data)
+
+    @property
+    def classes(self):
+        return self._data.get("classes", {})
+
+    @classes.setter
+    def classes(self, value):
+        self._data["classes"] = value
+        if self._tracking_enabled:
+            self.mark_dirty()
+
+    @property
+    def prefixes(self):
+        return self._data.get("prefixes", {})
+
+    @prefixes.setter
+    def prefixes(self, value):
+        self._data["prefixes"] = value
+        if self._tracking_enabled:
+            self.mark_dirty()
+
+    @property
+    def features(self):
+        return self._data.get("features", [])
+
+    @features.setter
+    def features(self, value):
+        self._data["features"] = value
+        if self._tracking_enabled:
+            self.mark_dirty()
 
     @classmethod
     def from_fea(cls, fea: str, glyphNames=()) -> "Features":

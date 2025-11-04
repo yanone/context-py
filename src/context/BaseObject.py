@@ -1,4 +1,3 @@
-from dataclasses import dataclass, fields, field
 from typing import Union, Optional
 import orjson
 from collections import namedtuple
@@ -40,7 +39,9 @@ class TrackedDict(dict):
     def _convert_nested_dicts(self):
         """Convert any nested plain dicts to TrackedDict."""
         for key, value in list(self.items()):
-            if isinstance(value, dict) and not isinstance(value, TrackedDict):
+            if isinstance(value, dict) and not isinstance(
+                value, (TrackedDict, I18NDictionary)
+            ):
                 # Create a nested TrackedDict with same owner
                 nested = TrackedDict(
                     owner=self._owner_ref() if self._owner_ref else None
@@ -49,10 +50,12 @@ class TrackedDict(dict):
                 # Use dict.__setitem__ to avoid triggering dirty marking during init
                 dict.__setitem__(self, key, nested)
             elif isinstance(value, list):
-                # Convert lists containing dicts
+                # Convert lists containing dicts (but not I18NDictionary)
                 new_list = []
                 for item in value:
-                    if isinstance(item, dict) and not isinstance(item, TrackedDict):
+                    if isinstance(item, dict) and not isinstance(
+                        item, (TrackedDict, I18NDictionary)
+                    ):
                         nested = TrackedDict(
                             owner=self._owner_ref() if self._owner_ref else None
                         )
@@ -84,17 +87,21 @@ class TrackedDict(dict):
                 )
 
     def __setitem__(self, key, value):
-        # Convert nested dicts to TrackedDict
-        if isinstance(value, dict) and not isinstance(value, TrackedDict):
+        # Convert nested dicts to TrackedDict (but not I18NDictionary)
+        if isinstance(value, dict) and not isinstance(
+            value, (TrackedDict, I18NDictionary)
+        ):
             nested = TrackedDict(owner=self._owner_ref() if self._owner_ref else None)
             nested.update(value)
             value = nested
         elif isinstance(value, list):
-            # Convert lists containing dicts
+            # Convert lists containing dicts (but not I18NDictionary)
             new_list = []
             converted = False
             for item in value:
-                if isinstance(item, dict) and not isinstance(item, TrackedDict):
+                if isinstance(item, dict) and not isinstance(
+                    item, (TrackedDict, I18NDictionary)
+                ):
                     nested = TrackedDict(
                         owner=self._owner_ref() if self._owner_ref else None
                     )
@@ -188,73 +195,70 @@ class I18NDictionary(dict):
         return rv
 
 
-@dataclass
 class BaseObject:
-    # OK, what's going on here? And why do we split _FoobarFields from Foobar?
-    # We want to achieve the following:
-    #    * A ``user_data`` field on *every* derived object...
-    #    * ...which does not need to be added to the constructor arguments
-    #    * ...but which (for convenience when instantiating from JSON) has an
-    #      alias of ``_`` which *can* be added to the constructor arguments
+    """
+    Base class for all font objects with dict-backed storage.
 
-    # dataclasses load up their fields by walking the inheritance tree, but
-    # (just like Python function declarations) dataclasses don't support putting
-    # defaultable fields after non-defaultable fields.
-
-    # Because we want ``user_data`` (and particularly ``_``) to be optional
-    # on __init__ it needs to be defaultable. So it needs to appear after the
-    # other fields in the inheritance hierarchy. So we inherit from a _...Fields
-    # class first and then BaseObject second. Ugly but it works.
-
-    # dataclasses also don't support field aliases. The ``_`` field is only
-    # really used for initialization, so in ``__post_init__`` we move its
-    # contents into the `user_data` field where it really lives.
+    All data is stored in self._data dict. Properties provide field access.
+    This makes serialization instant: to_dict() just returns _data.
+    """
 
     # Field aliasing: Classes can define a _field_aliases dict mapping Python
-    # field names to their serialized names in the file format. This allows
-    # the Python API to use clear names while maintaining backward compatibility
-    # with existing file formats.
+    # field names to their serialized names in the file format.
     _field_aliases = {}
 
     # Tracking control: When False, __setattr__ bypasses all dirty tracking
     # for fast loading. Call initialize_dirty_tracking() to enable.
     _tracking_enabled = False
 
-    user_data: dict = field(
-        default_factory=dict,
-        repr=False,
-        metadata={
-            "skip_serialize": True,
-            "description": """
-Each object in Context has an optional attached dictionary to allow the storage
-of format-specific information. Font creation software may store any additional
-information that they wish to have preserved on import and export under a
-namespaced (reverse-domain) key in this dictionary. For example, information
-specific to the Glyphs software should be stored under the key `com.glyphsapp`.
-The value stored under this key may be any data serializable in JSON; typically
-it will be a `dict`.
+    def __init__(self, _data=None, **kwargs):
+        """
+        Initialize with dict-backed storage.
 
-Note that there is an important distinction between the Python object format
-of this field and the Context-JSON representation. When stored to JSON, this key
-is exported not as `user_data` but as a simple underscore (`_`).
-""",
-        },
-    )
-    _: dict = field(default=None, repr=False, metadata={"skip_serialize": True})
+        Args:
+            _data: Dictionary containing all object data (primary storage)
+            **kwargs: Individual field values (will be stored in _data)
+        """
+        # Initialize _data dict - this is the ONLY data storage
+        if _data is not None:
+            object.__setattr__(self, "_data", _data)
+        else:
+            # Build _data from kwargs
+            object.__setattr__(self, "_data", kwargs)
 
-    def __post_init__(self):
-        # Fast initialization during loading - minimal overhead
-        # Handle _ shorthand: copy to user_data if provided
-        if self._ is not None:
-            object.__setattr__(self, "user_data", self._)
-
-        # Initialize tracking infrastructure to None (populated on tracking init)
-        # Simplified: no hasattr checks needed, __post_init__ always runs once
+        # Initialize tracking infrastructure
+        object.__setattr__(self, "_tracking_enabled", False)
         object.__setattr__(self, "_dirty_flags", None)
         object.__setattr__(self, "_dirty_fields", None)
         object.__setattr__(self, "_parent_ref", None)
         object.__setattr__(self, "_user_data_snapshot", None)
         object.__setattr__(self, "_skip_user_data_check", False)
+
+    @property
+    def user_data(self):
+        """
+        Optional dictionary for format-specific data.
+        Stored as "_" in JSON serialization.
+        """
+        # Use object.__getattribute__ to avoid triggering tracked_getattribute
+        _data = object.__getattribute__(self, "_data")
+        return _data.get("_", {})
+
+    @user_data.setter
+    def user_data(self, value):
+        self._data["_"] = value
+        if hasattr(self, "mark_dirty") and self._tracking_enabled:
+            self.mark_dirty()
+
+    @property
+    def _(self):
+        """Alias for user_data."""
+        return self.user_data
+
+    @_.setter
+    def _(self, value):
+        """Alias for user_data."""
+        self.user_data = value
 
     @classmethod
     def _normalize_fields(cls, data_dict):
@@ -279,38 +283,63 @@ is exported not as `user_data` but as a simple underscore (`_`).
     _write_one_line = False
     _separate_items = {}
 
-    def mark_dirty(self, context=DIRTY_FILE_SAVING, field_name=None, propagate=True):
+    def mark_dirty(self, context=None, field_name=None, propagate=True):
         """
-        Mark this object as dirty in the given context.
+        Mark this object as dirty in the given context(s).
 
         Args:
-            context: The context name (e.g., 'file_saving', 'canvas_render')
+            context: The context name or None for all standard contexts
             field_name: Optional specific field that changed
             propagate: Whether to propagate dirty flag to parent
         """
         if self._dirty_flags is None:
             object.__setattr__(self, "_dirty_flags", {})
-        self._dirty_flags[context] = True
 
-        if field_name:
-            if self._dirty_fields is None:
-                object.__setattr__(self, "_dirty_fields", {})
-            if context not in self._dirty_fields:
-                self._dirty_fields[context] = set()
-            self._dirty_fields[context].add(field_name)
+        # Auto-detect field name from property setter if not provided
+        if field_name is None:
+            import inspect
+            frame = inspect.currentframe()
+            try:
+                # Check if called from a property setter
+                if frame and frame.f_back:
+                    caller_name = frame.f_back.f_code.co_name
+                    # Property setters are named like the property
+                    if hasattr(self.__class__, caller_name):
+                        prop = getattr(self.__class__, caller_name)
+                        if isinstance(prop, property):
+                            field_name = caller_name
+            finally:
+                del frame
 
-        if propagate:
-            parent = self._get_parent()
-            if parent is not None:
-                parent.mark_dirty(context, propagate=True)
+        # If no context specified, mark for all standard contexts
+        if context is None:
+            contexts = [DIRTY_FILE_SAVING, DIRTY_CANVAS_RENDER]
+        else:
+            contexts = [context]
 
-    def mark_clean(self, context=DIRTY_FILE_SAVING, recursive=False):
+        for ctx in contexts:
+            self._dirty_flags[ctx] = True
+
+            if field_name:
+                if self._dirty_fields is None:
+                    object.__setattr__(self, "_dirty_fields", {})
+                if ctx not in self._dirty_fields:
+                    self._dirty_fields[ctx] = set()
+                self._dirty_fields[ctx].add(field_name)
+
+            if propagate:
+                parent = self._get_parent()
+                if parent is not None:
+                    parent.mark_dirty(ctx, propagate=True)
+
+    def mark_clean(self, context=DIRTY_FILE_SAVING, recursive=False, build_cache=False):
         """
         Mark this object as clean in the given context.
 
         Args:
             context: The context name to mark clean
             recursive: Whether to recursively mark children clean
+            build_cache: Whether to build dict cache proactively
         """
         # Lazy initialization: Initialize tracking if not yet done
         # This happens when mark_clean is called recursively on children
@@ -332,14 +361,21 @@ is exported not as `user_data` but as a simple underscore (`_`).
             self._dirty_fields.pop(context, None)
             # Keep as empty dict, don't set to None
 
-        # Don't snapshot user_data here - let it be lazy!
-        # Snapshot will be created automatically when:
-        # - user_data is first accessed (via tracked_getattribute)
-        # - user_data is modified (via tracked_setattr)
-        # This avoids expensive upfront snapshotting of 877k objects
+        # Proactively build dict cache when marking clean
+        # This makes subsequent to_dict() calls instant
+        if build_cache and context == DIRTY_FILE_SAVING:
+            # Temporarily disable tracking during cache build for speed
+            old_skip = _SKIP_USER_DATA_TRACKING
+            globals()["_SKIP_USER_DATA_TRACKING"] = True
+            try:
+                # Build cache without tracking overhead
+                cache_dict = self._to_dict_no_cache()
+                object.__setattr__(self, "_dict_cache", cache_dict)
+            finally:
+                globals()["_SKIP_USER_DATA_TRACKING"] = old_skip
 
         if recursive:
-            self._mark_children_clean(context)
+            self._mark_children_clean(context, build_cache=build_cache)
 
     def is_dirty(self, context=DIRTY_FILE_SAVING):
         """Check if this object is dirty in the given context."""
@@ -367,7 +403,7 @@ is exported not as `user_data` but as a simple underscore (`_`).
             return self._parent_ref()
         return None
 
-    def _mark_children_clean(self, context):
+    def _mark_children_clean(self, context, build_cache=False):
         """
         Override in subclasses to recursively mark children clean.
         Default implementation does nothing.
@@ -570,21 +606,9 @@ is exported not as `user_data` but as a simple underscore (`_`).
         cls.__getattribute__ = tracked_getattribute
 
     def _should_separate_when_serializing(self, key):
-        # Cache the result to avoid repeated dictionary lookups
-        cache_attr = "_separate_cache"
-        if not hasattr(self, cache_attr):
-            object.__setattr__(self, cache_attr, {})
-
-        cache = object.__getattribute__(self, cache_attr)
-        if key in cache:
-            return cache[key]
-
-        result = (
-            key in self.__dataclass_fields__
-            and "separate_items" in self.__dataclass_fields__[key].metadata
-        )
-        cache[key] = result
-        return result
+        # With dict-backed storage, check the _separate_items class attribute
+        # (This was previously stored in dataclass field metadata)
+        return key in self._separate_items
 
     def _write_value(self, stream, k, v, indent=0):
         if hasattr(v, "write"):
@@ -595,6 +619,26 @@ is exported not as `user_data` but as a simple underscore (`_`).
                 self._write_value(stream, k, entry, indent + 1)
                 if ix < len(v) - 1:
                     stream.write(b", ")
+            stream.write(b"]")
+        elif isinstance(v, dict) and set(v.keys()) == {"x", "y", "angle"}:
+            # Position dict - serialize as [x, y, angle] list
+            stream.write(b"[")
+            stream.write(str(v["x"]).encode())
+            stream.write(b", ")
+            stream.write(str(v["y"]).encode())
+            stream.write(b", ")
+            stream.write(str(v["angle"]).encode())
+            stream.write(b"]")
+        elif isinstance(v, dict) and set(v.keys()) == {"r", "g", "b", "a"}:
+            # Color dict - serialize as [r, g, b, a] list
+            stream.write(b"[")
+            stream.write(str(v["r"]).encode())
+            stream.write(b", ")
+            stream.write(str(v["g"]).encode())
+            stream.write(b", ")
+            stream.write(str(v["b"]).encode())
+            stream.write(b", ")
+            stream.write(str(v["a"]).encode())
             stream.write(b"]")
         elif isinstance(v, dict):
             stream.write(b"{")
@@ -638,19 +682,27 @@ is exported not as `user_data` but as a simple underscore (`_`).
             stream.write(b"  " * indent)
         stream.write(b"{")
         towrite = []
-        # Cache fields() result at class level for performance
-        cls = type(self)
-        if not hasattr(cls, "_cached_fields"):
-            cls._cached_fields = fields(self)
-        for f in cls._cached_fields:
-            k = f.name
-            if "skip_serialize" in f.metadata or "python_only" in f.metadata:
+
+        # With dict-backed storage, iterate _data directly
+        # Skip internal tracking fields, back-references, and empty values
+        skip_keys = {
+            "_dirty_flags",
+            "_dirty_fields",
+            "_parent_ref",
+            "_font_ref",
+            "_glyph_ref",
+            "_user_data_snapshot",
+            "_skip_user_data_check",
+            "_tracking_enabled",
+            "font",  # Master.font is a back-ref
+        }
+
+        for k, v in self._data.items():
+            # Skip internal fields and user_data (handled separately)
+            if k in skip_keys or k == "_":
                 continue
-            v = getattr(self, k)
-            default = f.default
-            if (not v and "serialize_if_false" not in f.metadata) or (
-                default and v == default
-            ):
+            # Skip empty values
+            if not v and not isinstance(v, (int, float, bool)):
                 continue
             # Use alias for serialization if defined
             serialized_name = self._field_aliases.get(k, k)
@@ -666,7 +718,7 @@ is exported not as `user_data` but as a simple underscore (`_`).
             if ix != len(towrite) - 1:
                 stream.write(b", ")
 
-        if hasattr(self, "user_data") and self.user_data:
+        if self.user_data:
             stream.write(b",")
             if not self._write_one_line:
                 stream.write(b"\n")
@@ -695,3 +747,66 @@ is exported not as `user_data` but as a simple underscore (`_`).
         stream.write(b"}")
         if not self._write_one_line:
             stream.write(b"\n")
+
+    def _convert_value_to_dict(self, v):
+        """Convert a value to a dict-compatible representation."""
+        if hasattr(v, "to_dict"):
+            return v.to_dict()
+        elif isinstance(v, tuple):
+            return [self._convert_value_to_dict(entry) for entry in v]
+        elif isinstance(v, dict):
+            result = {}
+            for k1, v1 in v.items():
+                # Handle tuple keys (e.g., kerning keys)
+                if not isinstance(k1, str):
+                    dict_key = "//".join(k1)
+                else:
+                    dict_key = k1
+                result[dict_key] = self._convert_value_to_dict(v1)
+            return result
+        elif isinstance(v, list):
+            return [self._convert_value_to_dict(item) for item in v]
+        elif isinstance(v, datetime.datetime):
+            # Format without microseconds to match loader expectation
+            return v.strftime("%Y-%m-%d %H:%M:%S")
+        else:
+            # Return primitive types as-is
+            return v
+
+    def to_dict(self, use_cache=True):
+        """
+        Return dictionary representation.
+        With dict-backed storage, this is instant - just return _data.
+
+        Returns:
+            dict: The object's data dictionary
+        """
+        # For dict-backed objects, just return _data with nested conversion
+        result = {}
+        for key, value in self._data.items():
+            result[key] = self._convert_value_to_dict(value)
+        return result
+
+    @classmethod
+    def from_dict(cls, data):
+        """
+        Create an instance from a dictionary representation.
+        This is the inverse of to_dict().
+
+        Args:
+            data: Dictionary with object data
+
+        Returns:
+            Instance of the class
+        """
+        if not isinstance(data, dict):
+            return data
+
+        # Normalize field names (handle aliases)
+        normalized = cls._normalize_fields(data)
+
+        # Create instance with dict-backed storage
+        # Just pass the normalized dict as _data
+        instance = cls(_data=normalized.copy())
+
+        return instance

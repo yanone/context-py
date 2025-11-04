@@ -1,33 +1,134 @@
-from typing import Optional, List
-
-from dataclasses import dataclass, field
-from .BaseObject import BaseObject
-from .Layer import Layer
-from fontTools.misc.filenames import userNameToFileName
 import os
 
+from .BaseObject import BaseObject
+from .Layer import Layer
 
-@dataclass
-class _GlyphFields:
-    name: str
-    production_name: Optional[str] = None
-    category: str = "base"
-    codepoints: List[int] = field(default_factory=list)
-    layers: List[Layer] = field(
-        default_factory=list, repr=False, metadata={"skip_serialize": True}
-    )
-    exported: bool = field(default=True, metadata={"serialize_if_false": True})
-    direction: str = field(default="LTR", repr=False)
+try:
+    from fontTools.misc.filenames import userNameToFileName
+except ImportError:
+    userNameToFileName = None
 
 
-@dataclass
-class Glyph(BaseObject, _GlyphFields):
+class Glyph(BaseObject):
+    """A glyph in a font."""
+
     _write_one_line = True
 
-    def _mark_children_clean(self, context):
+    def __init__(
+        self,
+        name=None,
+        production_name=None,
+        category="base",
+        codepoints=None,
+        layers=None,
+        exported=True,
+        direction="LTR",
+        _data=None,
+        **kwargs,
+    ):
+        """Initialize Glyph with dict-backed storage."""
+        if _data is not None:
+            # Convert layers
+            if "layers" in _data and _data["layers"]:
+                if isinstance(_data["layers"][0], dict):
+                    _data["layers"] = [Layer.from_dict(l) for l in _data["layers"]]
+            super().__init__(_data=_data)
+        else:
+            # Convert layers to dicts
+            if layers and not isinstance(layers[0] if layers else None, dict):
+                layers = [l.to_dict() if hasattr(l, "to_dict") else l for l in layers]
+
+            data = {
+                "name": name,
+                "production_name": production_name,
+                "category": category,
+                "codepoints": codepoints or [],
+                "layers": layers or [],
+                "exported": exported,
+                "direction": direction,
+            }
+            data.update(kwargs)
+            super().__init__(_data=data)
+
+    @property
+    def name(self):
+        return self._data.get("name")
+
+    @name.setter
+    def name(self, value):
+        self._data["name"] = value
+        if self._tracking_enabled:
+            self.mark_dirty()
+
+    @property
+    def production_name(self):
+        return self._data.get("production_name")
+
+    @production_name.setter
+    def production_name(self, value):
+        self._data["production_name"] = value
+
+    @property
+    def category(self):
+        return self._data.get("category", "base")
+
+    @category.setter
+    def category(self, value):
+        self._data["category"] = value
+
+    @property
+    def codepoints(self):
+        return self._data.get("codepoints", [])
+
+    @codepoints.setter
+    def codepoints(self, value):
+        self._data["codepoints"] = value
+        if self._tracking_enabled:
+            self.mark_dirty()
+
+    @property
+    def layers(self):
+        layers_data = self._data.get("layers")
+        if layers_data is None:
+            layers_data = []
+            self._data["layers"] = layers_data
+        # Convert dicts to Layer objects on first access
+        elif layers_data and isinstance(layers_data[0], dict):
+            layers = [Layer.from_dict(lyr) for lyr in layers_data]
+            for layer in layers:
+                layer._set_parent(self)
+            self._data["layers"] = layers
+            layers_data = layers
+        return layers_data
+
+    @layers.setter
+    def layers(self, value):
+        if value and not isinstance(value[0] if value else None, dict):
+            value = [l.to_dict() if hasattr(l, "to_dict") else l for l in value]
+        self._data["layers"] = value
+        if self._tracking_enabled:
+            self.mark_dirty()
+
+    @property
+    def exported(self):
+        return self._data.get("exported", True)
+
+    @exported.setter
+    def exported(self, value):
+        self._data["exported"] = value
+
+    @property
+    def direction(self):
+        return self._data.get("direction", "LTR")
+
+    @direction.setter
+    def direction(self, value):
+        self._data["direction"] = value
+
+    def _mark_children_clean(self, context, build_cache=False):
         """Recursively mark children clean."""
         for layer in self.layers:
-            layer.mark_clean(context, recursive=True)
+            layer.mark_clean(context, recursive=True, build_cache=build_cache)
 
     @property
     def babelfont_filename(self):

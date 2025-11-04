@@ -1,40 +1,102 @@
-from dataclasses import dataclass, field
-
 from .BaseObject import BaseObject, I18NDictionary
 from .Names import Names
 
 
-@dataclass
-class _InstanceFields:
-    name: I18NDictionary = field(metadata={"description": "The name of this instance."})
-    location: dict = field(
-        metadata={
-            "description": """A dictionary mapping axis tags to coordinates in order to locate this instance in the design space."""
-        }
-    )
-    variable: bool = field(
-        default=False,
-        metadata={
-            "description": """A boolean indicating whether this instance is variable or static."""
-        },
-    )
-    customNames: Names = field(
-        default_factory=Names,
-        metadata={"description": """A dictionary of custom names for this instance."""},
-    )
-
-
-@dataclass
-class Instance(BaseObject, _InstanceFields):
+class Instance(BaseObject):
     """An object representing a named or static instance."""
 
     _write_one_line = True
 
-    def __post_init__(self):
-        # If they smacked my name with a bare string, replace with I18NDict
-        if isinstance(self.name, str):
-            self.name = I18NDictionary.with_default(self.name)
-        super().__post_init__()
+    def __init__(
+        self,
+        name=None,
+        location=None,
+        variable=False,
+        customNames=None,
+        _data=None,
+        **kwargs,
+    ):
+        """Initialize Instance with dict-backed storage."""
+        if _data is not None:
+            # Convert name if it's a dict
+            if "name" in _data and isinstance(_data["name"], dict):
+                if not isinstance(_data["name"], I18NDictionary):
+                    i18n = I18NDictionary()
+                    i18n.update(_data["name"])
+                    _data["name"] = i18n
+            # Convert customNames if it's a dict
+            if "customNames" in _data and isinstance(_data["customNames"], dict):
+                _data["customNames"] = Names.from_dict(_data["customNames"])
+            super().__init__(_data=_data)
+        else:
+            # Convert name to I18NDictionary if needed
+            if isinstance(name, str):
+                name = I18NDictionary.with_default(name)
+            elif isinstance(name, dict) and not isinstance(name, I18NDictionary):
+                i18n = I18NDictionary()
+                i18n.update(name)
+                name = i18n
+
+            data = {
+                "name": name,
+                "location": location,
+                "variable": variable,
+                "customNames": customNames or Names(),
+            }
+            data.update(kwargs)
+            super().__init__(_data=data)
+
+    @property
+    def name(self):
+        name = self._data.get("name")
+        if isinstance(name, dict) and not isinstance(name, I18NDictionary):
+            i18n = I18NDictionary()
+            i18n.update(name)
+            self._data["name"] = i18n
+            name = i18n
+        return name
+
+    @name.setter
+    def name(self, value):
+        if isinstance(value, str):
+            value = I18NDictionary.with_default(value)
+        self._data["name"] = value
+        if self._tracking_enabled:
+            self.mark_dirty()
+
+    @property
+    def location(self):
+        return self._data.get("location")
+
+    @location.setter
+    def location(self, value):
+        self._data["location"] = value
+        if self._tracking_enabled:
+            self.mark_dirty()
+
+    @property
+    def variable(self):
+        return self._data.get("variable", False)
+
+    @variable.setter
+    def variable(self, value):
+        self._data["variable"] = value
+        if self._tracking_enabled:
+            self.mark_dirty()
+
+    @property
+    def customNames(self):
+        names = self._data.get("customNames")
+        if isinstance(names, dict) and not isinstance(names, Names):
+            names = Names.from_dict(names)
+            self._data["customNames"] = names
+        return names or Names()
+
+    @customNames.setter
+    def customNames(self, value):
+        self._data["customNames"] = value
+        if self._tracking_enabled:
+            self.mark_dirty()
 
     @property
     def localisedStyleName(self):

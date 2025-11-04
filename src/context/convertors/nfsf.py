@@ -33,8 +33,36 @@ class Context(BaseConvertor):
         info = self._load_file("info.json")
         glyphs = self._load_file("glyphs.json")
         self.font.user_data = info.get("_", {})
+
+        # With dict-backed storage, check if the attribute exists
+        # Names has 23 I18NDictionary fields
+        names_fields = {
+            "familyName",
+            "styleName",
+            "copyright",
+            "version",
+            "trademark",
+            "manufacturer",
+            "designer",
+            "description",
+            "vendorURL",
+            "designerURL",
+            "license",
+            "licenseURL",
+            "compatibleFullName",
+            "sampleText",
+            "postScriptFontName",
+            "postScriptSlantAngle",
+            "WWSFamilyName",
+            "WWSSubfamilyName",
+            "lightBackgroundPalette",
+            "darkBackgroundPalette",
+            "variationsPostScriptNamePrefix",
+            "preferredFamilyName",
+            "preferredSubfamilyName",
+        }
         for k, v in names.items():
-            if k in self.font.names.__dataclass_fields__:
+            if k in names_fields:
                 getattr(self.font.names, k).copy_in(v)
             elif k == "_":
                 self.font.names.user_data = v
@@ -127,9 +155,11 @@ class Context(BaseConvertor):
             master = Master(**json_master)
             master.font = self.font
             master._set_parent(self.font)
-            master.guides = [Guide(**Guide._normalize_fields(m)) for m in master.guides]
+            # Guide conversion is handled by Master.guides property getter
+            # Just ensure parent refs are set
             for guide in master.guides:
-                guide._set_parent(master)
+                if not hasattr(guide, "_parent_ref") or guide._parent_ref is None:
+                    guide._set_parent(master)
             self.font.masters.append(master)
 
     def _inflate_layer(self, json_layer):
@@ -137,13 +167,15 @@ class Context(BaseConvertor):
         components = json_layer.pop("components", [])
 
         layer = Layer(**json_layer)
-        layer.guides = [Guide(**Guide._normalize_fields(m)) for m in layer.guides]
-        layer.anchors = [Anchor(**m) for m in layer.anchors]
         layer._font = self.font
+        # Guide and anchor conversion handled by Layer properties
+        # Just ensure parent refs are set
         for guide in layer.guides:
-            guide._set_parent(layer)
+            if not hasattr(guide, "_parent_ref") or guide._parent_ref is None:
+                guide._set_parent(layer)
         for anchor in layer.anchors:
-            anchor._set_parent(layer)
+            if not hasattr(anchor, "_parent_ref") or anchor._parent_ref is None:
+                anchor._set_parent(layer)
 
         # Inflate regular shapes
         layer.shapes = [self._inflate_shape(layer, s) for s in layer.shapes]
@@ -155,6 +187,18 @@ class Context(BaseConvertor):
         return layer
 
     def _inflate_shape(self, layer, s):
+        # If s is already a Shape object (from dict-backed property getter),
+        # just set parent
+        if isinstance(s, Shape):
+            s._set_parent(layer)
+            # Ensure nodes have parent refs
+            if s.nodes:
+                for node in s.nodes:
+                    if not hasattr(node, "_parent_ref") or node._parent_ref is None:
+                        node._set_parent(s)
+            return s
+
+        # Otherwise create Shape from dict
         shape = Shape(**s)
         shape._set_parent(layer)
         if shape.nodes:
@@ -225,8 +269,15 @@ class Context(BaseConvertor):
         if info_dirty or not info_file.exists():
             reason = "dirty" if info_dirty else "new location"
             print(f"  📝 Writing info.json ({reason})")
+            # Temporarily remove glyphs before writing (they're in separate files)
+            saved_glyphs = self.font._data.get("glyphs", [])
+            self.font._data["glyphs"] = []
+            
             with open(info_file, "wb") as f:
                 self.font.write(stream=f)
+            
+            # Restore glyphs
+            self.font._data["glyphs"] = saved_glyphs
         else:
             print("  ⏩ Skipping info.json (clean)")
 
@@ -323,8 +374,19 @@ class Context(BaseConvertor):
             else:
                 reason = "new location"
             print(f"  📝 Writing glyphs.json ({reason})")
+            # Write glyphs without layers (layers are in separate .nfsglyph files)
+            # Temporarily remove layers before serializing
+            saved_layers = {}
+            for g in self.font.glyphs:
+                saved_layers[g.name] = g._data.get("layers", [])
+                g._data["layers"] = []
+            
             with open(glyphs_json_path, "wb") as f:
                 self.font._write_value(f, "glyphs", self.font.glyphs)
+            
+            # Restore layers
+            for g in self.font.glyphs:
+                g._data["layers"] = saved_layers[g.name]
         else:
             print("  ⏩ Skipping glyphs.json (clean)")
 

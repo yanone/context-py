@@ -1,77 +1,151 @@
-from typing import List, Optional, Tuple
+from typing import Optional, Tuple
 from .BaseObject import BaseObject, I18NDictionary, Number
-from dataclasses import dataclass, field
 import uuid
-from fontTools.varLib.models import normalizeValue, piecewiseLinearMap
+
+try:
+    from fontTools.varLib.models import normalizeValue, piecewiseLinearMap
+except ImportError:
+    normalizeValue = None
+    piecewiseLinearMap = None
 
 
 Tag = str
 
 
-@dataclass
-class _AxisFields:
-    name: I18NDictionary = field(
-        metadata={"description": "The display name for this axis."}
-    )
-    tag: Tag = field(metadata={"description": "The four-letter axis tag."})
-    id: str = field(
-        default_factory=lambda: str(uuid.uuid1()),
-        repr=False,
-        metadata={
-            "description": """An ID used to refer to this axis in the Master,
-Layer and Instance `location` fields. (This is allows the user to change the
-axis tag without the locations becoming lost.) If not provided, one will be
-automatically generated on import from a UUID."""
-        },
-    )
-    min: int = field(
-        default=None,
-        metadata={
-            "description": "The minimum value of this axis, in user space coordinates."
-        },
-    )
-    max: int = field(
-        default=None,
-        metadata={
-            "description": "The maximum value of this axis, in user space coordinates."
-        },
-    )
-    default: int = field(
-        default=None,
-        metadata={
-            "description": """The default value of this axis (center of interpolation),
-in user space coordinates. Note that if the min/max/default values are not supplied,
-they are returned as `None` in the Python object, and should be computed from the
-master locations on export."""
-        },
-    )
-    map: List[Tuple[int, int]] = field(
-        default=None,
-        metadata={
-            "description": """The mapping between userspace and designspace coordinates."""
-        },
-    )
-    hidden: bool = field(
-        default=False,
-        metadata={
-            "description": """If `True`, this axis is hidden from the user interface.
-            Hidden axes are used for internal font generation and are not displayed in the
-            user interface."""
-        },
-    )
-
-
-@dataclass
-class Axis(BaseObject, _AxisFields):
+class Axis(BaseObject):
     """Represents an axis in a multiple master or variable font."""
 
     _write_one_line = True
 
-    def __post_init__(self):
-        # If they smacked my name with a bare string, replace with I18NDict
-        if isinstance(self.name, str):
-            self.name = I18NDictionary.with_default(self.name)
-        super().__post_init__()
+    def __init__(
+        self,
+        name=None,
+        tag=None,
+        id=None,
+        min=None,
+        max=None,
+        default=None,
+        map=None,
+        hidden=False,
+        _data=None,
+        **kwargs,
+    ):
+        """Initialize Axis with dict-backed storage."""
+        if _data is not None:
+            # Convert name if it's a dict
+            if "name" in _data and isinstance(_data["name"], dict):
+                if not isinstance(_data["name"], I18NDictionary):
+                    i18n = I18NDictionary()
+                    i18n.update(_data["name"])
+                    _data["name"] = i18n
+            super().__init__(_data=_data)
+        else:
+            # Convert name to I18NDictionary if needed
+            if isinstance(name, str):
+                name = I18NDictionary.with_default(name)
+            elif isinstance(name, dict) and not isinstance(name, I18NDictionary):
+                i18n = I18NDictionary()
+                i18n.update(name)
+                name = i18n
+
+            data = {
+                "name": name,
+                "tag": tag,
+                "id": id or str(uuid.uuid1()),
+                "min": min,
+                "max": max,
+                "default": default,
+                "map": map,
+                "hidden": hidden,
+            }
+            data.update(kwargs)
+            super().__init__(_data=data)
+
+    @property
+    def name(self):
+        name = self._data.get("name")
+        if isinstance(name, dict) and not isinstance(name, I18NDictionary):
+            i18n = I18NDictionary()
+            i18n.update(name)
+            self._data["name"] = i18n
+            name = i18n
+        return name
+
+    @name.setter
+    def name(self, value):
+        if isinstance(value, str):
+            value = I18NDictionary.with_default(value)
+        self._data["name"] = value
+        if self._tracking_enabled:
+            self.mark_dirty()
+
+    @property
+    def tag(self):
+        return self._data.get("tag")
+
+    @tag.setter
+    def tag(self, value):
+        self._data["tag"] = value
+        if self._tracking_enabled:
+            self.mark_dirty()
+
+    @property
+    def id(self):
+        return self._data.get("id")
+
+    @id.setter
+    def id(self, value):
+        self._data["id"] = value
+
+    @property
+    def min(self):
+        return self._data.get("min")
+
+    @min.setter
+    def min(self, value):
+        self._data["min"] = value
+        if self._tracking_enabled:
+            self.mark_dirty()
+
+    @property
+    def max(self):
+        return self._data.get("max")
+
+    @max.setter
+    def max(self, value):
+        self._data["max"] = value
+        if self._tracking_enabled:
+            self.mark_dirty()
+
+    @property
+    def default(self):
+        return self._data.get("default")
+
+    @default.setter
+    def default(self, value):
+        self._data["default"] = value
+        if self._tracking_enabled:
+            self.mark_dirty()
+
+    @property
+    def map(self):
+        return self._data.get("map")
+
+    @map.setter
+    def map(self, value):
+        self._data["map"] = value
+        if self._tracking_enabled:
+            self.mark_dirty()
+
+    @property
+    def hidden(self):
+        return self._data.get("hidden", False)
+
+    @hidden.setter
+    def hidden(self, value):
+        self._data["hidden"] = value
+        if self._tracking_enabled:
+            self.mark_dirty()
 
     def normalize_value(self, value: Number) -> float:
         """Return a normalized co-ordinate (-1.0 to 1.0) for the given value.
@@ -140,6 +214,20 @@ class Axis(BaseObject, _AxisFields):
         if not self.map:
             return v
         return piecewiseLinearMap(v, {v: k for k, v in self.map})
+
+    @classmethod
+    def from_dict(cls, data):
+        """Create Axis from dictionary, handling name field."""
+        # Handle name field - convert to I18NDictionary if needed
+        if "name" in data and isinstance(data["name"], dict):
+            name_dict = I18NDictionary()
+            name_dict.update(data["name"])
+            data["name"] = name_dict
+        elif "name" in data and isinstance(data["name"], str):
+            data["name"] = I18NDictionary.with_default(data["name"])
+
+        # Create axis with fields
+        return super(Axis, cls).from_dict(data)
 
     # These are just better names
     def userspace_to_designspace(self, v: Number) -> Number:

@@ -1,5 +1,4 @@
 from .BaseObject import BaseObject, I18NDictionary
-from dataclasses import dataclass, asdict, fields
 
 OPENTYPE_NAMES = [
     "copyright",
@@ -27,41 +26,87 @@ OPENTYPE_NAMES = [
     "WWSSubfamilyName",
 ]
 
+NAME_FIELDS = [
+    "familyName",
+    "styleName",
+    "copyright",
+    "styleMapFamilyName",
+    "styleMapStyleName",
+    "uniqueID",
+    "fullName",
+    "version",
+    "postscriptName",
+    "trademark",
+    "manufacturer",
+    "designer",
+    "description",
+    "manufacturerURL",
+    "designerURL",
+    "license",
+    "licenseURL",
+    "typographicFamily",
+    "typographicSubfamily",
+    "compatibleFullName",
+    "sampleText",
+    "WWSFamilyName",
+    "WWSSubfamilyName",
+]
 
-@dataclass
+
 class Names(BaseObject):
     """A table of global, localizable names for the font."""
 
-    familyName: I18NDictionary = None  # Name ID 1 if styleMapFamilyName is not present
-    styleName: I18NDictionary = None  # Name ID 17 if no typographicSubfamily
+    def __init__(self, _data=None, **kwargs):
+        """Initialize Names with dict-backed storage."""
+        if _data is not None:
+            # Convert dict values back to I18NDictionary
+            for key, value in _data.items():
+                if key == "_":
+                    continue
+                if isinstance(value, dict) and not isinstance(value, I18NDictionary):
+                    i18n = I18NDictionary()
+                    i18n.update(value)
+                    _data[key] = i18n
+                elif isinstance(value, str):
+                    _data[key] = I18NDictionary.with_default(value)
+            super().__init__(_data=_data)
+        else:
+            # Initialize all name fields with I18NDictionary
+            data = {}
+            for field in NAME_FIELDS:
+                value = kwargs.pop(field, None)
+                if value is None:
+                    value = I18NDictionary()
+                elif isinstance(value, str):
+                    value = I18NDictionary.with_default(value)
+                elif isinstance(value, dict) and not isinstance(value, I18NDictionary):
+                    i18n = I18NDictionary()
+                    i18n.update(value)
+                    value = i18n
+                data[field] = value
+            data.update(kwargs)
+            super().__init__(_data=data)
 
-    copyright: I18NDictionary = None  # Name ID 0
-    styleMapFamilyName: I18NDictionary = None  # Name ID 1
-    styleMapStyleName: I18NDictionary = None  # Name ID 2
-    uniqueID: I18NDictionary = None  # Name ID 3
-    fullName: I18NDictionary = None  # Name ID 4
-    version: I18NDictionary = None  # Name ID 5
-    postscriptName: I18NDictionary = None  # Name ID 6
-    trademark: I18NDictionary = None  # Name ID 7
-    manufacturer: I18NDictionary = None  # Name ID 8
-    designer: I18NDictionary = None  # Name ID 9
-    description: I18NDictionary = None  # Name ID 10
-    manufacturerURL: I18NDictionary = None  # Name ID 11
-    designerURL: I18NDictionary = None  # Name ID 12
-    license: I18NDictionary = None  # Name ID 13
-    licenseURL: I18NDictionary = None  # Name ID 14
-    typographicFamily: I18NDictionary = None  # Name ID 16
-    typographicSubfamily: I18NDictionary = None  # Name ID 17
-    compatibleFullName: I18NDictionary = None  # Name ID 18
-    sampleText: I18NDictionary = None  # Name ID 19
-    WWSFamilyName: I18NDictionary = None  # Name ID 21
-    WWSSubfamilyName: I18NDictionary = None  # Name ID 22
+    def __getattr__(self, name):
+        """Provide access to name fields."""
+        if name.startswith("_"):
+            msg = f"'{type(self).__name__}' object has no attribute '{name}'"
+            raise AttributeError(msg)
+        # Return value from _data, default to empty I18NDictionary
+        value = self._data.get(name)
+        if value is None and name in NAME_FIELDS:
+            value = I18NDictionary()
+            self._data[name] = value
+        return value
 
-    def __post_init__(self):
-        super().__post_init__()
-        for k in fields(self):
-            if not getattr(self, k.name):
-                setattr(self, k.name, I18NDictionary())
+    def __setattr__(self, name, value):
+        """Set name field values."""
+        if name.startswith("_") or name in ("mark_dirty", "mark_clean"):
+            object.__setattr__(self, name, value)
+        else:
+            self._data[name] = value
+            if self._tracking_enabled:
+                self.mark_dirty(field_name=name)
 
     def as_nametable_dict(self):
         rv = {}
@@ -70,8 +115,8 @@ class Names(BaseObject):
             "license": "licenseDescription",
             "licenseURL": "licenseInfoURL",
         }
-        for k, v in asdict(self).items():
-            if not v:
+        for k, v in self._data.items():
+            if k == "_" or not v:
                 continue
             rv[ft_names.get(k, k)] = v.default_or_dict()
         return rv

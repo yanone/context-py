@@ -1,11 +1,14 @@
 import functools
 import logging
-from dataclasses import dataclass, field
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
-from fontTools.feaLib.variableScalar import VariableScalar
-from fontTools.varLib.models import VariationModel
+try:
+    from fontTools.feaLib.variableScalar import VariableScalar
+    from fontTools.varLib.models import VariationModel
+except ImportError:
+    VariableScalar = None
+    VariationModel = None
 
 from .Axis import Axis, Tag
 from .BaseObject import BaseObject, IncompatibleMastersError, Number
@@ -18,129 +21,267 @@ from .Names import Names
 log = logging.getLogger(__name__)
 
 
-@dataclass
-class _FontFields:
-    upm: int = field(default=1000, metadata={"description": "The font's units per em."})
-    version: Tuple[int, int] = field(
-        default=(1, 0),
-        metadata={
-            "description": "Font version number as a tuple of integers (major, minor).",
-            "json_type": "[int,int]",
-        },
-    )
-    axes: List[Axis] = field(
-        default_factory=list,
-        metadata={
-            "separate_items": True,
-            "description": "A list of axes, in the case of variable/multiple master font. May be empty.",
-        },
-    )
-    instances: List[Instance] = field(
-        default_factory=list,
-        metadata={
-            "separate_items": True,
-            "description": "A list of named/static instances.",
-        },
-    )
-    masters: List[Master] = field(
-        default_factory=list,
-        metadata={
-            "separate_items": True,
-            "description": "A list of the font's masters.",
-        },
-    )
-    glyphs: GlyphList = field(
-        default_factory=GlyphList,
-        metadata={
-            "skip_serialize": True,
-            "separate_items": True,
-            "json_type": "[dict]",
-            "json_location": "glyphs.json",
-            "description": """A list of all glyphs supported in the font.
-
-The `GlyphList` structure in the Python object is a dictionary with array-like
-properties (or you might think of it as an array with dictionary-like properties)
-containing [`Glyph`](Glyph.md) objects. The `GlyphList` may be iterated
-directly, and may be appended to, but may also be used to index a `Glyph` by
-its name. This is generally what you want:
-
-```Python
-
-for g in font.glyphs:
-    assert isinstance(g, Glyph)
-
-font.glyphs.append(newglyph)
-
-glyph_ampersand = font.glyphs["ampersand"]
-```
-            """,
-        },
-    )
-    note: str = field(
-        default=None,
-        metadata={"description": "Any user-defined textual note about this font."},
-    )
-    date: datetime = field(
-        default_factory=datetime.now,
-        metadata={
-            "description": """The font's date. When writing to Context-JSON, this
-should be stored in the format `%Y-%m-%d %H:%M:%S`. *If not provided, defaults
-to the current date/time*.""",
-            "json_type": "str",
-        },
-    )
-    names: Names = field(default_factory=Names, metadata={"skip_serialize": True})
-    custom_opentype_values: Dict[Tuple[str, str], Any] = field(
-        default_factory=dict,
-        metadata={
-            "description": "Any values to be placed in OpenType tables on export to override defaults; these must be font-wide. Metrics which may vary by master should be placed in the `metrics` field of a Master."
-        },
-    )
-    filename: Optional[str] = field(
-        default=None,
-        metadata={
-            "python_only": True,
-            "description": """The file path from which this font was loaded
-or to which it should be saved. This is automatically set when loading
-a font and used as the default path when saving.""",
-        },
-    )
-    features: Features = field(
-        default_factory=Features,
-        metadata={
-            "description": "A representation of the font's OpenType features",
-        },
-    )
-    first_kern_groups: Dict[str, List[str]] = field(
-        default_factory=dict,
-        metadata={
-            "description": "A dictionary of kerning groups, where the key is the group name and the value is a list of glyph names in the group."
-        },
-    )
-    second_kern_groups: Dict[str, List[str]] = field(
-        default_factory=dict,
-        metadata={
-            "description": "A dictionary of kerning groups, where the key is the group name and the value is a list of glyph names in the group."
-        },
-    )
-
-
-@dataclass
-class Font(_FontFields, BaseObject):
+class Font(BaseObject):
     """Represents a font, with one or more masters."""
 
-    def __post_init__(self):
-        super().__post_init__()
+    def __init__(
+        self,
+        upm=1000,
+        version=(1, 0),
+        axes=None,
+        instances=None,
+        masters=None,
+        glyphs=None,
+        note=None,
+        date=None,
+        names=None,
+        custom_opentype_values=None,
+        filename=None,
+        features=None,
+        first_kern_groups=None,
+        second_kern_groups=None,
+        _data=None,
+        **kwargs,
+    ):
+        """Initialize Font with dict-backed storage."""
+        if _data is not None:
+            # Convert nested objects
+            if "axes" in _data and _data["axes"]:
+                if isinstance(_data["axes"][0], dict):
+                    _data["axes"] = [Axis.from_dict(a) for a in _data["axes"]]
+            if "masters" in _data and _data["masters"]:
+                if isinstance(_data["masters"][0], dict):
+                    _data["masters"] = [Master.from_dict(m) for m in _data["masters"]]
+            if "instances" in _data and _data["instances"]:
+                if isinstance(_data["instances"][0], dict):
+                    _data["instances"] = [
+                        Instance.from_dict(i) for i in _data["instances"]
+                    ]
+            if "names" in _data and isinstance(_data["names"], dict):
+                _data["names"] = Names.from_dict(_data["names"])
+            if "features" in _data and isinstance(_data["features"], dict):
+                _data["features"] = Features.from_dict(_data["features"])
+            super().__init__(_data=_data)
+        else:
+            # Convert nested objects to dicts
+            if axes and not isinstance(axes[0] if axes else None, dict):
+                axes = [a.to_dict() if hasattr(a, "to_dict") else a for a in axes]
+            if masters and not isinstance(masters[0] if masters else None, dict):
+                masters = [m.to_dict() if hasattr(m, "to_dict") else m for m in masters]
+            if instances and not isinstance(instances[0] if instances else None, dict):
+                instances = [
+                    i.to_dict() if hasattr(i, "to_dict") else i for i in instances
+                ]
+
+            data = {
+                "upm": upm,
+                "version": version,
+                "axes": axes or [],
+                "instances": instances or [],
+                "masters": masters or [],
+                "glyphs": glyphs or GlyphList(),
+                "note": note,
+                "date": date or datetime.now(),
+                "names": names or Names(),
+                "custom_opentype_values": custom_opentype_values or {},
+                "filename": filename,
+                "features": features or Features(),
+                "first_kern_groups": first_kern_groups or {},
+                "second_kern_groups": second_kern_groups or {},
+            }
+            data.update(kwargs)
+            super().__init__(_data=data)
+
         # Set up parent reference for GlyphList dirty tracking
-        # (must be done even if glyphs is empty, so appends work later)
         self.glyphs._set_parent_font(self)
         # Set parent for names, features
         self.names._set_parent(self)
         self.features._set_parent(self)
         # Initialize callback lists
         object.__setattr__(
-            self, "_callbacks", {"before_save": [], "after_save": [], "on_error": []}
+            self,
+            "_callbacks",
+            {"before_save": [], "after_save": [], "on_error": []},
         )
+
+    @property
+    def upm(self):
+        return self._data.get("upm", 1000)
+
+    @upm.setter
+    def upm(self, value):
+        self._data["upm"] = value
+        if self._tracking_enabled:
+            self.mark_dirty()
+
+    @property
+    def version(self):
+        ver = self._data.get("version", (1, 0))
+        # Convert list back to tuple if needed
+        if isinstance(ver, list):
+            ver = tuple(ver)
+            self._data["version"] = ver
+        return ver
+
+    @version.setter
+    def version(self, value):
+        self._data["version"] = value
+        if self._tracking_enabled:
+            self.mark_dirty()
+
+    @property
+    def axes(self):
+        axes_data = self._data.get("axes", [])
+        if axes_data and isinstance(axes_data[0], dict):
+            axes = [Axis.from_dict(a) for a in axes_data]
+            self._data["axes"] = axes
+        return self._data.get("axes", [])
+
+    @axes.setter
+    def axes(self, value):
+        if value and not isinstance(value[0] if value else None, dict):
+            value = [a.to_dict() if hasattr(a, "to_dict") else a for a in value]
+        self._data["axes"] = value
+        if self._tracking_enabled:
+            self.mark_dirty()
+
+    @property
+    def instances(self):
+        instances_data = self._data.get("instances", [])
+        if instances_data and isinstance(instances_data[0], dict):
+            instances = [Instance.from_dict(i) for i in instances_data]
+            self._data["instances"] = instances
+        return self._data.get("instances", [])
+
+    @instances.setter
+    def instances(self, value):
+        if value and not isinstance(value[0] if value else None, dict):
+            value = [i.to_dict() if hasattr(i, "to_dict") else i for i in value]
+        self._data["instances"] = value
+        if self._tracking_enabled:
+            self.mark_dirty()
+
+    @property
+    def masters(self):
+        masters_data = self._data.get("masters", [])
+        if masters_data and isinstance(masters_data[0], dict):
+            masters = [Master.from_dict(m) for m in masters_data]
+            # Set font reference
+            for master in masters:
+                master.font = self
+            self._data["masters"] = masters
+        return self._data.get("masters", [])
+
+    @masters.setter
+    def masters(self, value):
+        if value and not isinstance(value[0] if value else None, dict):
+            value = [m.to_dict() if hasattr(m, "to_dict") else m for m in value]
+        self._data["masters"] = value
+        if self._tracking_enabled:
+            self.mark_dirty()
+
+    @property
+    def glyphs(self):
+        glyphs = self._data.get("glyphs")
+        if not glyphs or not isinstance(glyphs, GlyphList):
+            glyphs = GlyphList()
+            self._data["glyphs"] = glyphs
+            glyphs._set_parent_font(self)
+        return glyphs
+
+    @glyphs.setter
+    def glyphs(self, value):
+        self._data["glyphs"] = value
+        if self._tracking_enabled:
+            self.mark_dirty()
+
+    @property
+    def note(self):
+        return self._data.get("note")
+
+    @note.setter
+    def note(self, value):
+        self._data["note"] = value
+        if self._tracking_enabled:
+            self.mark_dirty()
+
+    @property
+    def date(self):
+        return self._data.get("date", datetime.now())
+
+    @date.setter
+    def date(self, value):
+        self._data["date"] = value
+
+    @property
+    def names(self):
+        names_data = self._data.get("names")
+        if isinstance(names_data, dict) and not isinstance(names_data, Names):
+            names = Names.from_dict(names_data)
+            names._set_parent(self)
+            self._data["names"] = names
+            return names
+        return names_data or Names()
+
+    @names.setter
+    def names(self, value):
+        self._data["names"] = value
+        if self._tracking_enabled:
+            self.mark_dirty()
+
+    @property
+    def custom_opentype_values(self):
+        return self._data.get("custom_opentype_values", {})
+
+    @custom_opentype_values.setter
+    def custom_opentype_values(self, value):
+        self._data["custom_opentype_values"] = value
+        if self._tracking_enabled:
+            self.mark_dirty()
+
+    @property
+    def filename(self):
+        return self._data.get("filename")
+
+    @filename.setter
+    def filename(self, value):
+        self._data["filename"] = value
+
+    @property
+    def features(self):
+        features_data = self._data.get("features")
+        if isinstance(features_data, dict) and not isinstance(features_data, Features):
+            features = Features.from_dict(features_data)
+            features._set_parent(self)
+            self._data["features"] = features
+            return features
+        return features_data or Features()
+
+    @features.setter
+    def features(self, value):
+        self._data["features"] = value
+        if self._tracking_enabled:
+            self.mark_dirty()
+
+    @property
+    def first_kern_groups(self):
+        return self._data.get("first_kern_groups", {})
+
+    @first_kern_groups.setter
+    def first_kern_groups(self, value):
+        self._data["first_kern_groups"] = value
+        if self._tracking_enabled:
+            self.mark_dirty()
+
+    @property
+    def second_kern_groups(self):
+        return self._data.get("second_kern_groups", {})
+
+    @second_kern_groups.setter
+    def second_kern_groups(self, value):
+        self._data["second_kern_groups"] = value
+        if self._tracking_enabled:
+            self.mark_dirty()
 
     def initialize_dirty_tracking(self):
         """
@@ -203,19 +344,19 @@ class Font(_FontFields, BaseObject):
         self.mark_dirty(DIRTY_CANVAS_RENDER, propagate=False)
         print("  📍 Font marked dirty for CANVAS_RENDER")
 
-    def _mark_children_clean(self, context):
+    def _mark_children_clean(self, context, build_cache=False):
         """Recursively mark children clean."""
         for glyph in self.glyphs:
-            glyph.mark_clean(context, recursive=True)
+            glyph.mark_clean(context, recursive=True, build_cache=build_cache)
         for master in self.masters:
-            master.mark_clean(context, recursive=True)
+            master.mark_clean(context, recursive=True, build_cache=build_cache)
         for axis in self.axes:
-            axis.mark_clean(context, recursive=False)
+            axis.mark_clean(context, recursive=False, build_cache=build_cache)
         for instance in self.instances:
-            instance.mark_clean(context, recursive=False)
+            instance.mark_clean(context, recursive=False, build_cache=build_cache)
         # Clean names and features
-        self.names.mark_clean(context, recursive=False)
-        self.features.mark_clean(context, recursive=False)
+        self.names.mark_clean(context, recursive=False, build_cache=build_cache)
+        self.features.mark_clean(context, recursive=False, build_cache=build_cache)
 
     def __repr__(self):
         return "<Font '%s' (%i masters)>" % (
@@ -374,6 +515,123 @@ class Font(_FontFields, BaseObject):
                     log.error(f"Error in on_error callback: {e}")
             # Re-raise the original error
             raise
+
+    def to_dict(self, use_cache=True):
+        """
+        Convert the entire font to a dictionary representation.
+        This creates a complete babelfont-compatible dictionary including
+        all glyphs and their layers, suitable for serialization to JSON
+        and passing to Rust/WASM.
+
+        Args:
+            use_cache: If True, use cached dicts for clean objects
+
+        Returns:
+            dict: A complete dictionary representation of the font
+        """
+        # Start with base object dictionary (top-level font properties)
+        result = super().to_dict(use_cache=use_cache)
+
+        # Add names dictionary
+        result["names"] = self.names.to_dict(use_cache=use_cache)
+
+        # Add features
+        if self.features:
+            result["features"] = self.features.to_dict(use_cache=use_cache)
+
+        # Add glyphs with their layers
+        glyphs_list = []
+        for glyph in self.glyphs:
+            glyph_dict = glyph.to_dict(use_cache=use_cache)
+            # Add layers to each glyph
+            if glyph.layers:
+                glyph_dict["layers"] = [
+                    layer.to_dict(use_cache=use_cache) for layer in glyph.layers
+                ]
+            glyphs_list.append(glyph_dict)
+        result["glyphs"] = glyphs_list
+
+        return result
+
+    @classmethod
+    def from_dict(cls, data):
+        """
+        Create a Font instance from a complete dictionary representation.
+        This is the inverse of to_dict() and handles the full font structure
+        including glyphs, layers, names, features, etc.
+
+        Args:
+            data: Complete dictionary with font data
+
+        Returns:
+            Font instance
+        """
+        from context import (
+            Axis,
+            Instance,
+            Master,
+            Glyph,
+            Layer,
+            Names,
+            Features,
+        )
+
+        # Extract complex nested structures
+        glyphs_data = data.pop("glyphs", [])
+        names_data = data.pop("names", {})
+        features_data = data.pop("features", None)
+        axes_data = data.pop("axes", [])
+        instances_data = data.pop("instances", [])
+        masters_data = data.pop("masters", [])
+
+        # Create font with simple fields
+        font = super(Font, cls).from_dict(data)
+
+        # Restore axes
+        font.axes = [Axis.from_dict(axis_data) for axis_data in axes_data]
+        for axis in font.axes:
+            axis._set_parent(font)
+
+        # Restore instances
+        font.instances = [Instance.from_dict(inst_data) for inst_data in instances_data]
+        for instance in font.instances:
+            instance._set_parent(font)
+
+        # Restore masters
+        font.masters = [Master.from_dict(master_data) for master_data in masters_data]
+        for master in font.masters:
+            master.font = font
+            master._set_parent(font)
+
+        # Restore names
+        font.names = Names.from_dict(names_data)
+        font.names._set_parent(font)
+
+        # Restore features
+        if features_data:
+            font.features = Features.from_dict(features_data)
+            font.features._set_parent(font)
+
+        # Restore glyphs with their layers
+        for glyph_data in glyphs_data:
+            layers_data = glyph_data.pop("layers", [])
+            glyph = Glyph.from_dict(glyph_data)
+            glyph._set_parent(font)
+
+            # Restore layers
+            for layer_data in layers_data:
+                layer = Layer.from_dict(layer_data)
+                layer._glyph = glyph
+                layer._font = font
+                layer._set_parent(glyph)
+                glyph.layers.append(layer)
+
+            font.glyphs.append(glyph)
+
+        # Set up parent reference for GlyphList
+        font.glyphs._set_parent_font(font)
+
+        return font
 
     def master(self, mid: str) -> Optional[Master]:
         """Locates a master by its ID. Returns `None` if not found."""
