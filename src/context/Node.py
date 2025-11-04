@@ -12,6 +12,20 @@ class Node(BaseObject):
     Data is stored in self._data dict. Properties provide access to fields.
     """
 
+    # Define validation rules for each field
+    _field_types = {
+        "x": {
+            "data_type": int,
+        },
+        "y": {
+            "data_type": int,
+        },
+        "type": {
+            "data_type": str,
+            "allowed_values": ["o", "os", "c", "cs", "l", "ls", "q", "qs"],
+        },
+    }
+
     def __init__(self, x=0, y=0, type="c", _data=None, **kwargs):
         """Initialize Node with dict-backed storage."""
         if _data is not None:
@@ -30,8 +44,7 @@ class Node(BaseObject):
 
     @x.setter
     def x(self, value):
-        self._data["x"] = value
-        self.mark_dirty()
+        self._set_field("x", value)
 
     @property
     def y(self):
@@ -40,8 +53,7 @@ class Node(BaseObject):
 
     @y.setter
     def y(self, value):
-        self._data["y"] = value
-        self.mark_dirty()
+        self._set_field("y", value)
 
     @property
     def type(self):
@@ -50,8 +62,7 @@ class Node(BaseObject):
 
     @type.setter
     def type(self, value):
-        self._data["type"] = value
-        self.mark_dirty()
+        self._set_field("type", value)
 
     def write(self, stream, _indent):
         # Check if there's any user data to write

@@ -260,6 +260,9 @@ class BaseObject:
         """Alias for user_data."""
         self.user_data = value
 
+    # Type checking for setters
+    _field_types = {}
+
     @classmethod
     def _normalize_fields(cls, data_dict):
         """
@@ -279,6 +282,72 @@ class BaseObject:
             normalized[python_name] = value
 
         return normalized
+
+    def _set_field(self, field_name, value, expected_type=None):
+        """
+        Helper method for setters with type checking.
+
+        Args:
+            field_name: Name of the field to set
+            value: Value to set
+            expected_type: Expected type(s) for validation. Can be:
+                - A single type: int, str, etc.
+                - A tuple of types: (int, float)
+                - A dict with "data_type" and optional "allowed_values"
+                - None to skip type checking
+
+        Raises:
+            ValueError: If value doesn't match expected type or allowed values
+        """
+        # Use class-level type definition if not provided
+        validation_rules = expected_type
+        if validation_rules is None and hasattr(self, "_field_types"):
+            validation_rules = self._field_types.get(field_name)
+
+        # Perform validation
+        if validation_rules is not None:
+            # Handle nested dict format with data_type and allowed_values
+            if isinstance(validation_rules, dict):
+                data_type = validation_rules.get("data_type")
+                allowed_values = validation_rules.get("allowed_values")
+
+                # Check data type
+                if data_type is not None:
+                    if not isinstance(value, data_type):
+                        # Format type name(s) for error message
+                        if isinstance(data_type, tuple):
+                            type_names = " or ".join(t.__name__ for t in data_type)
+                        else:
+                            type_names = data_type.__name__
+                        raise ValueError(
+                            f"{self.__class__.__name__}.{field_name} must be "
+                            f"{type_names}, got {type(value).__name__}"
+                        )
+
+                # Check allowed values
+                if allowed_values is not None:
+                    if value not in allowed_values:
+                        raise ValueError(
+                            f"{self.__class__.__name__}.{field_name} must be "
+                            f"one of {allowed_values}, got {value!r}"
+                        )
+            else:
+                # Legacy format: direct type or tuple of types
+                if not isinstance(value, validation_rules):
+                    # Format type name(s) for error message
+                    if isinstance(validation_rules, tuple):
+                        type_names = " or ".join(t.__name__ for t in validation_rules)
+                    else:
+                        type_names = validation_rules.__name__
+                    raise ValueError(
+                        f"{self.__class__.__name__}.{field_name} must be "
+                        f"{type_names}, got {type(value).__name__}"
+                    )
+
+        # Set the value and mark dirty with field name for tracking
+        self._data[field_name] = value
+        if self._tracking_enabled:
+            self.mark_dirty(field_name=field_name)
 
     _write_one_line = False
     _separate_items = {}
