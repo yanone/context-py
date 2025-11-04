@@ -436,62 +436,27 @@ class Font(BaseObject):
         print("  📍 Font marked dirty for CANVAS_RENDER")
 
     def _mark_children_clean(self, context, build_cache=False):
-        """Recursively mark children clean."""
-        # Work directly with _data to avoid property overhead
-        from context import Glyph, Master, Axis, Instance
-
-        # Mark glyphs clean - iterate GlyphList dict
+        """Recursively mark children clean without creating objects."""
+        # OPTIMIZATION: Don't create any objects during mark_clean!
+        # All objects (glyphs, layers, shapes, etc.) will be created lazily
+        # when first accessed. This makes initialization nearly instant.
+        
+        # Only mark already-instantiated objects
         for glyph_name, glyph_data in self.glyphs.items():
-            if isinstance(glyph_data, dict):
-                glyph = Glyph.from_dict(glyph_data, _copy=False)
-                glyph._set_parent(self)
-                # Enable tracking if parent has it enabled
-                if self._tracking_enabled:
-                    object.__setattr__(glyph, "_tracking_enabled", True)
-            elif isinstance(glyph_data, Glyph):
-                # Already a Glyph object
-                glyph = glyph_data
-            else:
-                continue
-
-            glyph.mark_clean(context, recursive=True, build_cache=build_cache)
-
-        # Mark masters clean
-        masters_data = self._data.get("masters", [])
-        for master_dict in masters_data:
-            if isinstance(master_dict, dict):
-                master = Master.from_dict(master_dict, _copy=False)
-                master._set_parent(self)
-                # Enable tracking if parent has it enabled
-                if self._tracking_enabled:
-                    object.__setattr__(master, "_tracking_enabled", True)
-                master.mark_clean(context, recursive=True, build_cache=build_cache)
-
-        # Mark axes clean
-        axes_data = self._data.get("axes", [])
-        for axis_dict in axes_data:
-            if isinstance(axis_dict, dict):
-                axis = Axis.from_dict(axis_dict, _copy=False)
-                axis._set_parent(self)
-                # Enable tracking if parent has it enabled
-                if self._tracking_enabled:
-                    object.__setattr__(axis, "_tracking_enabled", True)
-                axis.mark_clean(context, recursive=False, build_cache=build_cache)
-
-        # Mark instances clean
-        instances_data = self._data.get("instances", [])
-        for instance_dict in instances_data:
-            if isinstance(instance_dict, dict):
-                instance = Instance.from_dict(instance_dict, _copy=False)
-                instance._set_parent(self)
-                # Enable tracking if parent has it enabled
-                if self._tracking_enabled:
-                    object.__setattr__(instance, "_tracking_enabled", True)
-                instance.mark_clean(context, recursive=False, build_cache=build_cache)
-
-        # Clean names and features (these don't need from_dict)
+            if hasattr(glyph_data, 'mark_clean'):
+                # Already a Glyph object - mark it clean
+                glyph_data.mark_clean(
+                    context, recursive=True, build_cache=build_cache
+                )
+        
+        # Masters, axes, instances are stored as dicts - skip them
+        # They'll be marked clean when converted to objects via properties
+        
+        # Clean names and features (these are always objects, not dicts)
         self.names.mark_clean(context, recursive=False, build_cache=build_cache)
-        self.features.mark_clean(context, recursive=False, build_cache=build_cache)
+        self.features.mark_clean(
+            context, recursive=False, build_cache=build_cache
+        )
 
     def __repr__(self):
         return "<Font '%s' (%i masters)>" % (

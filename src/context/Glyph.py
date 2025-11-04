@@ -135,27 +135,22 @@ class Glyph(BaseObject):
         self._data["direction"] = value
 
     def _mark_children_clean(self, context, build_cache=False):
-        """Recursively mark children clean."""
-        # Work directly with _data to avoid property overhead
-        from context import Layer
-
+        """Recursively mark children clean without creating objects."""
+        # Don't create Layer objects during mark_clean!
+        # Layers (and their shapes/anchors/guides) will be created lazily
+        # when first accessed via self.layers property
+        
+        # Only mark already-instantiated Layer objects
         layers_data = self._data.get("layers", [])
         for layer_data in layers_data:
             if isinstance(layer_data, dict):
-                # Create Layer without deepcopy (_copy=False)
-                layer = Layer.from_dict(layer_data, _copy=False)
-                layer._glyph = self
-                layer._set_parent(self)
-                # Enable tracking if parent has it enabled
-                if self._tracking_enabled:
-                    object.__setattr__(layer, "_tracking_enabled", True)
-            elif isinstance(layer_data, Layer):
-                # Already a Layer object
-                layer = layer_data
-            else:
-                continue
-
-            layer.mark_clean(context, recursive=True, build_cache=build_cache)
+                # Skip dicts - don't create Layer objects yet
+                pass
+            elif hasattr(layer_data, 'mark_clean'):
+                # Already a Layer object - mark it clean
+                layer_data.mark_clean(
+                    context, recursive=True, build_cache=build_cache
+                )
 
     @property
     def babelfont_filename(self):

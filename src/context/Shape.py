@@ -146,20 +146,11 @@ class Shape(BaseObject):
         self._data["_layer"] = value
 
     def _mark_children_clean(self, context, build_cache=False):
-        """Recursively mark children clean."""
-        # Work directly with _data to avoid property overhead
-        from context import Node
-
-        nodes_data = self._data.get("nodes", [])
-        if nodes_data:
-            for node_data in nodes_data:
-                # Create Node without deepcopy (_copy=False)
-                node = Node.from_dict(node_data, _copy=False)
-                node._set_parent(self)
-                # Enable tracking if parent has it enabled
-                if self._tracking_enabled:
-                    object.__setattr__(node, "_tracking_enabled", True)
-                node.mark_clean(context, recursive=True, build_cache=build_cache)
+        """Recursively mark children clean without creating objects."""
+        # Nodes have no children - don't need to create Node objects
+        # They'll be created lazily when first accessed via self.nodes property
+        # Nothing to do here - just let lazy initialization happen later
+        pass
 
     def write(self, stream, indent=0):
         """Override write to ensure nodes are Node objects."""

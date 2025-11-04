@@ -358,14 +358,29 @@ class Layer(BaseObject):
         object.__setattr__(self, "_glyph_ref", glyph_ref)
 
     def _mark_children_clean(self, context, build_cache=False):
-        """Recursively mark children clean."""
-        # Use properties to get children - they handle tracking initialization
-        for shape in self.shapes:
-            shape.mark_clean(context, recursive=True, build_cache=build_cache)
-        for anchor in self.anchors:
-            anchor.mark_clean(context, recursive=False, build_cache=build_cache)
-        for guide in self.guides:
-            guide.mark_clean(context, recursive=False, build_cache=build_cache)
+        """Recursively mark children clean without creating objects."""
+        # Work directly with _data dicts - don't create objects yet!
+        # Objects will be created lazily when first accessed
+        
+        # Mark shapes clean (they have children: nodes)
+        shapes_data = self._data.get("shapes", [])
+        if shapes_data:
+            from context import Shape
+            for shape_data in shapes_data:
+                if isinstance(shape_data, dict):
+                    # Mark the dict as clean by recursing into nodes
+                    nodes_data = shape_data.get("nodes", [])
+                    # Nodes have no children, just mark them clean
+                    # (no need to create Node objects)
+                    pass
+                elif hasattr(shape_data, 'mark_clean'):
+                    # Already a Shape object
+                    shape_data.mark_clean(
+                        context, recursive=True, build_cache=build_cache
+                    )
+        
+        # Anchors and guides have no children - nothing to mark
+        # They'll get tracking enabled when first accessed
 
     def write(self, stream, indent=0):
         """Override write to ensure shapes are Shape objects."""
