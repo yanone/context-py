@@ -359,29 +359,25 @@ class Layer(BaseObject):
 
     def _mark_children_clean(self, context, build_cache=False):
         """Recursively mark children clean without creating objects."""
-        # Work directly with _data dicts - don't create objects yet!
-        # Objects will be created lazily when first accessed
+        # Don't create objects during mark_clean!
+        # Use cached TrackedLists if available, otherwise skip
 
-        # Mark shapes clean (they have children: nodes)
-        shapes_data = self._data.get("shapes", [])
-        if shapes_data:
-            from context import Shape
+        # If shapes are cached, mark them clean (shapes have children: nodes)
+        if self._shapes_cache is not None:
+            for shape in self._shapes_cache:
+                shape.mark_clean(context, recursive=True, build_cache=build_cache)
 
-            for shape_data in shapes_data:
-                if isinstance(shape_data, dict):
-                    # Mark the dict as clean by recursing into nodes
-                    nodes_data = shape_data.get("nodes", [])
-                    # Nodes have no children, just mark them clean
-                    # (no need to create Node objects)
-                    pass
-                elif hasattr(shape_data, "mark_clean"):
-                    # Already a Shape object
-                    shape_data.mark_clean(
-                        context, recursive=True, build_cache=build_cache
-                    )
+        # If anchors are cached, mark them clean
+        if self._anchors_cache is not None:
+            for anchor in self._anchors_cache:
+                anchor.mark_clean(context, recursive=False, build_cache=build_cache)
 
-        # Anchors and guides have no children - nothing to mark
-        # They'll get tracking enabled when first accessed
+        # If guides are cached, mark them clean
+        if self._guides_cache is not None:
+            for guide in self._guides_cache:
+                guide.mark_clean(context, recursive=False, build_cache=build_cache)
+
+        # Otherwise skip - objects will be marked clean when first accessed
 
     def write(self, stream, indent=0):
         """Override write to ensure shapes are Shape objects."""

@@ -50,6 +50,9 @@ class Glyph(BaseObject):
             data.update(kwargs)
             super().__init__(_data=data)
 
+        # Initialize layers cache
+        object.__setattr__(self, "_layers_cache", None)
+
     @property
     def name(self):
         return self._data.get("name")
@@ -88,33 +91,47 @@ class Glyph(BaseObject):
 
     @property
     def layers(self):
-        layers_data = self._data.get("layers")
-        if layers_data is None:
-            layers_data = []
-            self._data["layers"] = layers_data
-        # Convert dicts to Layer objects on first access
-        elif layers_data and isinstance(layers_data[0], dict):
-            layers = [Layer.from_dict(lyr, _copy=False) for lyr in layers_data]
-            for layer in layers:
-                layer._set_parent(self)
-                # Enable tracking if parent has it enabled
-                if self._tracking_enabled:
-                    object.__setattr__(layer, "_tracking_enabled", True)
-            self._data["layers"] = layers
-            layers_data = layers
-        # Check if existing Layer objects need tracking enabled
-        elif layers_data and hasattr(layers_data[0], "_tracking_enabled"):
+        """Return TrackedList of Layer objects. _data stores dicts."""
+        from .BaseObject import TrackedList
+
+        # Return cached list if it exists
+        if self._layers_cache is not None:
+            # Check if cached objects need tracking enabled
             if self._tracking_enabled:
-                for layer in layers_data:
+                for layer in self._layers_cache:
                     if not layer._tracking_enabled:
                         object.__setattr__(layer, "_tracking_enabled", True)
-        return layers_data
+            return self._layers_cache
+
+        layers_data = self._data.get("layers", [])
+
+        # Convert dicts to Layer objects (no deepcopy needed for _data)
+        layers_objects = [Layer.from_dict(lyr, _copy=False) for lyr in layers_data]
+        for layer in layers_objects:
+            layer._set_parent(self)
+            # Enable tracking if parent has it enabled
+            if self._tracking_enabled:
+                object.__setattr__(layer, "_tracking_enabled", True)
+
+        # Create TrackedList and cache it
+        tracked = TrackedList(self, "layers", Layer)
+        tracked.extend(layers_objects, mark_dirty=False)
+        object.__setattr__(self, "_layers_cache", tracked)
+        return tracked
 
     @layers.setter
     def layers(self, value):
-        if value and not isinstance(value[0] if value else None, dict):
-            value = [l.to_dict() if hasattr(l, "to_dict") else l for l in value]
-        self._data["layers"] = value
+        """Store as dicts in _data and invalidate cache."""
+        if value:
+            dict_layers = [
+                layer.to_dict() if hasattr(layer, "to_dict") else layer
+                for layer in value
+            ]
+            self._data["layers"] = dict_layers
+        else:
+            self._data["layers"] = value
+        # Invalidate cache
+        object.__setattr__(self, "_layers_cache", None)
         if self._tracking_enabled:
             self.mark_dirty()
 
@@ -137,18 +154,13 @@ class Glyph(BaseObject):
     def _mark_children_clean(self, context, build_cache=False):
         """Recursively mark children clean without creating objects."""
         # Don't create Layer objects during mark_clean!
-        # Layers (and their shapes/anchors/guides) will be created lazily
-        # when first accessed via self.layers property
+        # Use cached TrackedList if available, otherwise skip
 
-        # Only mark already-instantiated Layer objects
-        layers_data = self._data.get("layers", [])
-        for layer_data in layers_data:
-            if isinstance(layer_data, dict):
-                # Skip dicts - don't create Layer objects yet
-                pass
-            elif hasattr(layer_data, "mark_clean"):
-                # Already a Layer object - mark it clean
-                layer_data.mark_clean(context, recursive=True, build_cache=build_cache)
+        # If layers are cached, mark them clean
+        if self._layers_cache is not None:
+            for layer in self._layers_cache:
+                layer.mark_clean(context, recursive=True, build_cache=build_cache)
+        # Otherwise skip - layers will be marked clean when first accessed
 
     @property
     def babelfont_filename(self):
@@ -192,7 +204,23 @@ class GlyphList(dict):
         return value
 
     def append(self, thing):
+        # Set parent and enable tracking on new glyph
+        if self._parent_font_ref:
+            font = self._parent_font_ref()
+            if font:
+                thing._set_parent(font)
+                # Enable tracking if font has it enabled
+                if hasattr(font, "_tracking_enabled") and font._tracking_enabled:
+                    if hasattr(thing, "_tracking_enabled"):
+                        object.__setattr__(thing, "_tracking_enabled", True)
+                        # Initialize dirty flags if not already set
+                        if thing._dirty_flags is None:
+                            object.__setattr__(thing, "_dirty_flags", {})
+                        if thing._dirty_fields is None:
+                            object.__setattr__(thing, "_dirty_fields", {})
+
         self[thing.name] = thing
+
         # Mark font dirty when glyph is added
         if self._parent_font_ref:
             from .BaseObject import DIRTY_FILE_SAVING, DIRTY_CANVAS_RENDER

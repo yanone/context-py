@@ -183,7 +183,12 @@ class TrackedList(list):
                 and owner._tracking_enabled
                 and hasattr(item, "_tracking_enabled")
             ):
-                item._tracking_enabled = True
+                object.__setattr__(item, "_tracking_enabled", True)
+                # Initialize dirty flags if not already set
+                if item._dirty_flags is None:
+                    object.__setattr__(item, "_dirty_flags", {})
+                if item._dirty_fields is None:
+                    object.__setattr__(item, "_dirty_fields", {})
 
     def _sync_to_data(self, mark_dirty=True):
         """Convert all objects to dicts and update owner._data.
