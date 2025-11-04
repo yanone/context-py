@@ -49,11 +49,9 @@ def comprehensive_font(tmp_path):
         default=400,
         _={"com.test": "weight-data"},
     )
-    axis_weight._set_parent(font)
     font.axes.append(axis_weight)
 
     axis_width = Axis(name="Width", tag="wdth", min=75, max=125, default=100)
-    axis_width._set_parent(font)
     font.axes.append(axis_width)
 
     # Add instances
@@ -62,11 +60,9 @@ def comprehensive_font(tmp_path):
         location={"wght": 300, "wdth": 100},
         _={"com.test": "instance-metadata"},
     )
-    instance_light._set_parent(font)
     font.instances.append(instance_light)
 
     instance_bold = Instance(name={"en": "Bold"}, location={"wght": 700, "wdth": 100})
-    instance_bold._set_parent(font)
     font.instances.append(instance_bold)
 
     # Add masters
@@ -91,9 +87,6 @@ def comprehensive_font(tmp_path):
         ],
         _={"com.test": {"master": "data"}},
     )
-    master_regular._set_parent(font)
-    for guide in master_regular.guides:
-        guide._set_parent(master_regular)
     font.masters.append(master_regular)
 
     master_bold = Master(
@@ -101,7 +94,6 @@ def comprehensive_font(tmp_path):
         id="master-bold",
         location={"wght": 700, "wdth": 100},
     )
-    master_bold._set_parent(font)
     font.masters.append(master_bold)
 
     # Add features
@@ -136,7 +128,6 @@ feature liga {
         exported=True,
         _={"com.test": {"glyph": "metadata"}},
     )
-    glyph_a._set_parent(font)
 
     layer_a_regular = Layer(
         width=600,
@@ -144,8 +135,6 @@ feature liga {
         _master="master-regular",
         _={"com.test": "layer-data"},
     )
-    layer_a_regular._set_parent(glyph_a)
-    layer_a_regular._font = font
 
     # Add guides to layer
     layer_a_regular.guides.append(
@@ -155,7 +144,6 @@ feature liga {
             color=Color(r=0, g=0, b=255, a=150),
         )
     )
-    layer_a_regular.guides[0]._set_parent(layer_a_regular)
 
     # Add shape with nodes including format-specific data
     shape_outline = Shape(
@@ -170,9 +158,6 @@ feature liga {
         closed=True,
         _={"com.test": "shape-metadata"},
     )
-    shape_outline._set_parent(layer_a_regular)
-    for node in shape_outline.nodes:
-        node._set_parent(shape_outline)
     layer_a_regular.shapes.append(shape_outline)
 
     # Add second shape (counter)
@@ -185,26 +170,19 @@ feature liga {
         ],
         closed=True,
     )
-    shape_counter._set_parent(layer_a_regular)
-    for node in shape_counter.nodes:
-        node._set_parent(shape_counter)
     layer_a_regular.shapes.append(shape_counter)
 
     # Add anchors
     anchor_top = Anchor(name="top", x=200, y=700, _={"com.test": "anchor-data"})
-    anchor_top._set_parent(layer_a_regular)
     layer_a_regular.anchors.append(anchor_top)
 
     anchor_bottom = Anchor(name="bottom", x=200, y=0)
-    anchor_bottom._set_parent(layer_a_regular)
     layer_a_regular.anchors.append(anchor_bottom)
 
     glyph_a.layers.append(layer_a_regular)
 
     # Add bold layer
     layer_a_bold = Layer(width=650, height=0, _master="master-bold")
-    layer_a_bold._set_parent(glyph_a)
-    layer_a_bold._font = font
     glyph_a.layers.append(layer_a_bold)
 
     font.glyphs.append(glyph_a)
@@ -213,11 +191,8 @@ feature liga {
     glyph_aacute = Glyph(
         name="Aacute", category="base", codepoints=[193], exported=True
     )
-    glyph_aacute._set_parent(font)
 
     layer_aacute = Layer(width=600, height=0, _master="master-regular")
-    layer_aacute._set_parent(glyph_aacute)
-    layer_aacute._font = font
 
     # Add component referencing glyph A
     component_a = Shape(
@@ -225,12 +200,10 @@ feature liga {
         transform=[1, 0, 0, 1, 0, 0],
         _={"com.test": "component-data"},
     )
-    component_a._set_parent(layer_aacute)
     layer_aacute.shapes.append(component_a)
 
     # Add component for accent
     component_acute = Shape(ref="acutecomb", transform=[1, 0, 0, 1, 200, 700])
-    component_acute._set_parent(layer_aacute)
     layer_aacute.shapes.append(component_acute)
 
     glyph_aacute.layers.append(layer_aacute)
@@ -240,11 +213,8 @@ feature liga {
     glyph_acute = Glyph(
         name="acutecomb", category="mark", codepoints=[769], exported=True
     )
-    glyph_acute._set_parent(font)
 
     layer_acute = Layer(width=0, height=0, _master="master-regular")
-    layer_acute._set_parent(glyph_acute)
-    layer_acute._font = font
 
     shape_acute = Shape(
         nodes=[
@@ -254,9 +224,6 @@ feature liga {
         ],
         closed=True,
     )
-    shape_acute._set_parent(layer_acute)
-    for node in shape_acute.nodes:
-        node._set_parent(shape_acute)
     layer_acute.shapes.append(shape_acute)
 
     glyph_acute.layers.append(layer_acute)
@@ -675,15 +642,11 @@ def test_node_serialization_formats(tmp_path):
     font.upm = 1000
 
     master = Master(name={"en": "Regular"}, id="master-1", location={})
-    master._set_parent(font)
     font.masters.append(master)
 
     glyph = Glyph(name="test")
-    glyph._set_parent(font)
 
     layer = Layer(width=500, _master="master-1")
-    layer._set_parent(glyph)
-    layer._font = font
 
     # Create shape with mix of nodes (with and without formatspecific)
     shape = Shape(
@@ -695,9 +658,6 @@ def test_node_serialization_formats(tmp_path):
         ],
         closed=True,
     )
-    shape._set_parent(layer)
-    for node in shape.nodes:
-        node._set_parent(shape)
     layer.shapes.append(shape)
 
     glyph.layers.append(layer)

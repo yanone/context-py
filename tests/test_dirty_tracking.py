@@ -32,12 +32,10 @@ def font_file(tmp_path):
 
     # Add axis
     axis = Axis(name="Weight", tag="wght", min=100, max=900, default=400)
-    axis._set_parent(font)
     font.axes.append(axis)
 
     # Add instance
     instance = Instance(name={"en": "Bold"}, location={"wght": 700})
-    instance._set_parent(font)
     font.instances.append(instance)
 
     # Add master
@@ -46,20 +44,15 @@ def font_file(tmp_path):
         id="master-1",
         location={},
     )
-    master._set_parent(font)
     font.masters.append(master)
 
     # Create glyph A with shapes, anchors, and guides
     glyph_a = Glyph(name="A", category="base", codepoints=[65], exported=True)
-    glyph_a._set_parent(font)
 
     layer_a = Layer(width=600, height=0, _master="master-1")
-    layer_a._set_parent(glyph_a)
-    layer_a._font = font
 
     # Add guide to layer
     guide = Guide(name="baseline", position=Position(x=0, y=0, angle=0))
-    guide._set_parent(layer_a)
     layer_a.guides.append(guide)
 
     # Add shape with nodes
@@ -72,12 +65,10 @@ def font_file(tmp_path):
         ],
         closed=True,
     )
-    shape._set_parent(layer_a)
     layer_a.shapes.append(shape)
 
     # Add anchor
     anchor = Anchor(name="top", x=300, y=700)
-    anchor._set_parent(layer_a)
     layer_a.anchors.append(anchor)
 
     glyph_a.layers.append(layer_a)
@@ -85,26 +76,19 @@ def font_file(tmp_path):
 
     # Create glyph B (simple, will be used as component reference)
     glyph_b = Glyph(name="B", category="base", codepoints=[66], exported=True)
-    glyph_b._set_parent(font)
 
     layer_b = Layer(width=600, height=0, _master="master-1")
-    layer_b._set_parent(glyph_b)
-    layer_b._font = font
 
     glyph_b.layers.append(layer_b)
     font.glyphs.append(glyph_b)
 
     # Create glyph C with component referencing B
     glyph_c = Glyph(name="C", category="base", codepoints=[67], exported=True)
-    glyph_c._set_parent(font)
 
     layer_c = Layer(width=600, height=0, _master="master-1")
-    layer_c._set_parent(glyph_c)
-    layer_c._font = font
 
     # Add component (which is a Shape with ref attribute)
     component = Shape(ref="B", transform=[1, 0, 0, 1, 0, 0])
-    component._set_parent(layer_c)
     layer_c.shapes.append(component)
 
     glyph_c.layers.append(layer_c)
@@ -396,7 +380,6 @@ class TestGlyphListTracking:
 
         # Add a new glyph
         new_glyph = Glyph(name="B")
-        new_glyph._set_parent(simple_font)
         simple_font.glyphs.append(new_glyph)
 
         # Font should now be dirty

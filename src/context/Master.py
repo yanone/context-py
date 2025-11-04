@@ -96,6 +96,9 @@ class Master(BaseObject):
             data.update(kwargs)
             super().__init__(_data=data)
 
+        # Initialize guides cache
+        object.__setattr__(self, "_guides_cache", None)
+
     @property
     def name(self):
         name = self._data.get("name")
@@ -142,20 +145,40 @@ class Master(BaseObject):
 
     @property
     def guides(self):
+        """Return TrackedList of Guide objects. _data stores dicts."""
+        from .BaseObject import TrackedList
+
+        # Return cached list if it exists
+        if self._guides_cache is not None:
+            return self._guides_cache
+
         guides_data = self._data.get("guides", [])
-        # Convert dicts to Guide objects on first access
-        if guides_data and isinstance(guides_data[0], dict):
-            guides = [Guide.from_dict(g) for g in guides_data]
-            for guide in guides:
-                guide._set_parent(self)
-            self._data["guides"] = guides
-        return self._data.get("guides", [])
+
+        # Convert dicts to Guide objects (no deepcopy needed for _data)
+        guides_objects = [Guide.from_dict(g, _copy=False) for g in guides_data]
+        for guide in guides_objects:
+            guide._set_parent(self)
+            # Enable tracking if parent has it enabled
+            if self._tracking_enabled:
+                object.__setattr__(guide, "_tracking_enabled", True)
+
+        # Create TrackedList and cache it
+        tracked = TrackedList(self, "guides", Guide)
+        tracked.extend(guides_objects, mark_dirty=False)
+        object.__setattr__(self, "_guides_cache", tracked)
+        return tracked
 
     @guides.setter
     def guides(self, value):
-        if value and not isinstance(value[0] if value else None, dict):
-            value = [g.to_dict() if hasattr(g, "to_dict") else g for g in value]
-        self._data["guides"] = value
+        """Store as dicts in _data and invalidate cache."""
+        if value:
+            # Convert Guide objects to dicts
+            dict_guides = [g.to_dict() if hasattr(g, "to_dict") else g for g in value]
+            self._data["guides"] = dict_guides
+        else:
+            self._data["guides"] = value
+        # Invalidate cache
+        object.__setattr__(self, "_guides_cache", None)
         if self._tracking_enabled:
             self.mark_dirty()
 
@@ -195,9 +218,17 @@ class Master(BaseObject):
         object.__setattr__(self, "_font_ref", font_ref)
 
     def _mark_children_clean(self, context, build_cache=False):
-        """Recursively mark children clean."""
-        for guide in self.guides:
-            guide.mark_clean(context, recursive=False, build_cache=build_cache)
+        """Recursively mark children clean using cached TrackedList."""
+        # Use cached TrackedList if available to avoid creating objects
+        if self._guides_cache is not None:
+            for guide in self._guides_cache:
+                guide.mark_clean(context, recursive=False, build_cache=build_cache)
+        elif build_cache:
+            # Build cache by accessing the property
+            for guide in self.guides:
+                guide.mark_clean(context, recursive=False, build_cache=build_cache)
+        # else: If cache doesn't exist and not building, skip
+        #       (object doesn't exist in memory yet)
 
     def get_glyph_layer(self, glyphname: str) -> Optional[Layer]:
         g = self.font.glyphs[glyphname]
@@ -296,9 +327,7 @@ class Master(BaseObject):
         # Create master with simple fields
         master = super(Master, cls).from_dict(data)
 
-        # Restore guides
-        master.guides = [Guide.from_dict(g) for g in guides_data]
-        for guide in master.guides:
-            guide._set_parent(master)
+        # Restore guides (setter converts to dicts, parent set lazily)
+        master.guides = [Guide.from_dict(g, _copy=False) for g in guides_data]
 
         return master

@@ -357,6 +357,23 @@ class Layer(BaseObject):
         glyph_ref = weakref.ref(glyph) if glyph else None
         object.__setattr__(self, "_glyph_ref", glyph_ref)
 
+    def _set_parent(self, parent):
+        """Override to automatically set _glyph and _font references."""
+        # Call base implementation to set _parent_ref
+        super()._set_parent(parent)
+
+        # If parent is a Glyph, set _glyph reference
+        # Import locally to avoid circular import at module level
+        from .Glyph import Glyph as GlyphClass
+
+        if isinstance(parent, GlyphClass):
+            self._glyph = parent
+            # Try to get font from glyph and set _font reference
+            if hasattr(parent, "_get_parent"):
+                font = parent._get_parent()
+                if font is not None:
+                    self._font = font
+
     def _mark_children_clean(self, context, build_cache=False):
         """Recursively mark children clean without creating objects."""
         # Don't create objects during mark_clean!

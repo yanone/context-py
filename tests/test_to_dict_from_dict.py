@@ -244,8 +244,6 @@ class TestFontRoundTrip:
         # Add a simple glyph
         glyph = Glyph(name="A", codepoints=[65])
         layer = Layer(width=600, _master="master01")
-        layer._font = font
-        layer._glyph = glyph
         glyph.layers.append(layer)
         font.glyphs.append(glyph)
 
