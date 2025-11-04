@@ -7,6 +7,19 @@ class Guide(BaseObject):
     # Map Python field names to their serialized names in files
     _field_aliases = {"position": "pos"}
 
+    # Define validation rules for each field
+    _field_types = {
+        "name": {
+            "data_type": str,
+        },
+        "position": {
+            "data_type": (dict, Position, list, tuple),
+        },
+        "color": {
+            "data_type": (dict, Color, list, tuple),
+        },
+    }
+
     def __init__(self, position=None, name=None, color=None, _data=None, **kwargs):
         """Initialize Guide with dict-backed storage."""
         if _data is not None:
@@ -57,9 +70,7 @@ class Guide(BaseObject):
         elif isinstance(value, (list, tuple)):
             angle = value[2] if len(value) > 2 else 0
             value = {"x": value[0], "y": value[1], "angle": angle}
-        self._data["position"] = value
-        if self._tracking_enabled:
-            self.mark_dirty()
+        self._set_field("position", value)
 
     @property
     def name(self):
@@ -67,9 +78,7 @@ class Guide(BaseObject):
 
     @name.setter
     def name(self, value):
-        self._data["name"] = value
-        if self._tracking_enabled:
-            self.mark_dirty()
+        self._set_field("name", value)
 
     @property
     def color(self):
@@ -90,6 +99,4 @@ class Guide(BaseObject):
         elif isinstance(value, (list, tuple)) and value:
             a = value[3] if len(value) > 3 else 0
             value = {"r": value[0], "g": value[1], "b": value[2], "a": a}
-        self._data["color"] = value
-        if self._tracking_enabled:
-            self.mark_dirty()
+        self._set_field("color", value)
