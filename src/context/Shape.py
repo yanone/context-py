@@ -111,7 +111,7 @@ class Shape(BaseObject):
                     value = nodes
             # Set parent for all nodes
             for node in value:
-                if hasattr(node, '_set_parent'):
+                if hasattr(node, "_set_parent"):
                     node._set_parent(self)
         self._data["nodes"] = value
         if self._tracking_enabled:
@@ -149,9 +149,7 @@ class Shape(BaseObject):
         """Recursively mark children clean."""
         if self.nodes:
             for node in self.nodes:
-                node.mark_clean(
-                    context, recursive=True, build_cache=build_cache
-                )
+                node.mark_clean(context, recursive=True, build_cache=build_cache)
 
     def write(self, stream, indent=0):
         """Override write to ensure nodes are Node objects."""

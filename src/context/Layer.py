@@ -188,7 +188,7 @@ class Layer(BaseObject):
                 value = [Shape.from_dict(s) for s in value]
             # Set parent for all shapes
             for shape in value:
-                if hasattr(shape, '_set_parent'):
+                if hasattr(shape, "_set_parent"):
                     shape._set_parent(self)
         self._data["shapes"] = value
         if self._tracking_enabled:
@@ -290,13 +290,9 @@ class Layer(BaseObject):
         for shape in self.shapes:
             shape.mark_clean(context, recursive=True, build_cache=build_cache)
         for anchor in self.anchors:
-            anchor.mark_clean(
-                context, recursive=False, build_cache=build_cache
-            )
+            anchor.mark_clean(context, recursive=False, build_cache=build_cache)
         for guide in self.guides:
-            guide.mark_clean(
-                context, recursive=False, build_cache=build_cache
-            )
+            guide.mark_clean(context, recursive=False, build_cache=build_cache)
 
     def write(self, stream, indent=0):
         """Override write to ensure shapes are Shape objects."""

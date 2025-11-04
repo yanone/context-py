@@ -298,6 +298,7 @@ class BaseObject:
         # Auto-detect field name from property setter if not provided
         if field_name is None:
             import inspect
+
             frame = inspect.currentframe()
             try:
                 # Check if called from a property setter

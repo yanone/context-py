@@ -272,10 +272,10 @@ class Context(BaseConvertor):
             # Temporarily remove glyphs before writing (they're in separate files)
             saved_glyphs = self.font._data.get("glyphs", [])
             self.font._data["glyphs"] = []
-            
+
             with open(info_file, "wb") as f:
                 self.font.write(stream=f)
-            
+
             # Restore glyphs
             self.font._data["glyphs"] = saved_glyphs
         else:
@@ -380,10 +380,10 @@ class Context(BaseConvertor):
             for g in self.font.glyphs:
                 saved_layers[g.name] = g._data.get("layers", [])
                 g._data["layers"] = []
-            
+
             with open(glyphs_json_path, "wb") as f:
                 self.font._write_value(f, "glyphs", self.font.glyphs)
-            
+
             # Restore layers
             for g in self.font.glyphs:
                 g._data["layers"] = saved_layers[g.name]
