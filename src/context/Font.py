@@ -45,22 +45,8 @@ class Font(BaseObject):
     ):
         """Initialize Font with dict-backed storage."""
         if _data is not None:
-            # Convert nested objects
-            if "axes" in _data and _data["axes"]:
-                if isinstance(_data["axes"][0], dict):
-                    _data["axes"] = [Axis.from_dict(a) for a in _data["axes"]]
-            if "masters" in _data and _data["masters"]:
-                if isinstance(_data["masters"][0], dict):
-                    _data["masters"] = [Master.from_dict(m) for m in _data["masters"]]
-            if "instances" in _data and _data["instances"]:
-                if isinstance(_data["instances"][0], dict):
-                    _data["instances"] = [
-                        Instance.from_dict(i) for i in _data["instances"]
-                    ]
-            if "names" in _data and isinstance(_data["names"], dict):
-                _data["names"] = Names.from_dict(_data["names"])
-            if "features" in _data and isinstance(_data["features"], dict):
-                _data["features"] = Features.from_dict(_data["features"])
+            # _data is passed in from from_dict() - use as-is
+            # The cache properties will handle conversion as needed
             super().__init__(_data=_data)
         else:
             # Convert nested objects to dicts
@@ -103,6 +89,10 @@ class Font(BaseObject):
             "_callbacks",
             {"before_save": [], "after_save": [], "on_error": []},
         )
+        # Initialize list property caches
+        object.__setattr__(self, "_axes_cache", None)
+        object.__setattr__(self, "_instances_cache", None)
+        object.__setattr__(self, "_masters_cache", None)
 
     @property
     def upm(self):
@@ -131,61 +121,133 @@ class Font(BaseObject):
 
     @property
     def axes(self):
+        """Return TrackedList of Axis objects. _data stores dicts."""
+        from .BaseObject import TrackedList
+
+        # Return cached list if it exists
+        if self._axes_cache is not None:
+            return self._axes_cache
+
         axes_data = self._data.get("axes", [])
-        if axes_data and isinstance(axes_data[0], dict):
-            axes = [Axis.from_dict(a) for a in axes_data]
-            self._data["axes"] = axes
-        return self._data.get("axes", [])
+
+        # Convert dicts to Axis objects
+        axes_objects = [Axis.from_dict(a) for a in axes_data]
+
+        # Create TrackedList and cache it
+        tracked = TrackedList(self, "axes", Axis)
+        tracked.extend(axes_objects, mark_dirty=False)
+        object.__setattr__(self, "_axes_cache", tracked)
+        return tracked
 
     @axes.setter
     def axes(self, value):
-        if value and not isinstance(value[0] if value else None, dict):
-            value = [a.to_dict() if hasattr(a, "to_dict") else a for a in value]
-        self._data["axes"] = value
+        """Store as dicts in _data and invalidate cache."""
+        if value:
+            dict_axes = [a.to_dict() if hasattr(a, "to_dict") else a for a in value]
+            self._data["axes"] = dict_axes
+        else:
+            self._data["axes"] = value
+        # Invalidate cache
+        object.__setattr__(self, "_axes_cache", None)
         if self._tracking_enabled:
             self.mark_dirty()
 
     @property
     def instances(self):
+        """Return TrackedList of Instance objects. _data stores dicts."""
+        from .BaseObject import TrackedList
+
+        # Return cached list if it exists
+        if self._instances_cache is not None:
+            return self._instances_cache
+
         instances_data = self._data.get("instances", [])
-        if instances_data and isinstance(instances_data[0], dict):
-            instances = [Instance.from_dict(i) for i in instances_data]
-            self._data["instances"] = instances
-        return self._data.get("instances", [])
+
+        # Convert dicts to Instance objects
+        instances_objects = [Instance.from_dict(i) for i in instances_data]
+
+        # Create TrackedList and cache it
+        tracked = TrackedList(self, "instances", Instance)
+        tracked.extend(instances_objects, mark_dirty=False)
+        object.__setattr__(self, "_instances_cache", tracked)
+        return tracked
 
     @instances.setter
     def instances(self, value):
-        if value and not isinstance(value[0] if value else None, dict):
-            value = [i.to_dict() if hasattr(i, "to_dict") else i for i in value]
-        self._data["instances"] = value
+        """Store as dicts in _data and invalidate cache."""
+        if value:
+            dict_instances = [
+                i.to_dict() if hasattr(i, "to_dict") else i for i in value
+            ]
+            self._data["instances"] = dict_instances
+        else:
+            self._data["instances"] = value
+        # Invalidate cache
+        object.__setattr__(self, "_instances_cache", None)
         if self._tracking_enabled:
             self.mark_dirty()
 
     @property
     def masters(self):
+        """Return TrackedList of Master objects. _data stores dicts."""
+        from .BaseObject import TrackedList
+
+        # Return cached list if it exists
+        if self._masters_cache is not None:
+            return self._masters_cache
+
         masters_data = self._data.get("masters", [])
-        if masters_data and isinstance(masters_data[0], dict):
-            masters = [Master.from_dict(m) for m in masters_data]
-            # Set font reference
-            for master in masters:
-                master.font = self
-            self._data["masters"] = masters
-        return self._data.get("masters", [])
+
+        # Convert dicts to Master objects
+        masters_objects = [Master.from_dict(m) for m in masters_data]
+
+        # Set font reference on each master
+        for master in masters_objects:
+            master.font = self
+
+        # Create TrackedList and cache it
+        tracked = TrackedList(self, "masters", Master)
+        tracked.extend(masters_objects, mark_dirty=False)
+        object.__setattr__(self, "_masters_cache", tracked)
+        return tracked
 
     @masters.setter
     def masters(self, value):
-        if value and not isinstance(value[0] if value else None, dict):
-            value = [m.to_dict() if hasattr(m, "to_dict") else m for m in value]
-        self._data["masters"] = value
+        """Store as dicts in _data and invalidate cache."""
+        if value:
+            dict_masters = [m.to_dict() if hasattr(m, "to_dict") else m for m in value]
+            self._data["masters"] = dict_masters
+        else:
+            self._data["masters"] = value
+        # Invalidate cache
+        object.__setattr__(self, "_masters_cache", None)
         if self._tracking_enabled:
             self.mark_dirty()
 
     @property
     def glyphs(self):
         glyphs = self._data.get("glyphs")
-        if not glyphs or not isinstance(glyphs, GlyphList):
+        if not glyphs:
+            # No glyphs - create empty GlyphList
             glyphs = GlyphList()
             self._data["glyphs"] = glyphs
+            glyphs._set_parent_font(self)
+        elif isinstance(glyphs, list) and not isinstance(glyphs, GlyphList):
+            # Have a plain list - convert to GlyphList
+            glyph_list = GlyphList()
+            glyph_list._set_parent_font(self)
+            for g_data in glyphs:
+                if isinstance(g_data, dict):
+                    from .Glyph import Glyph
+
+                    glyph = Glyph.from_dict(g_data)
+                    glyph_list.append(glyph)
+                else:
+                    glyph_list.append(g_data)
+            self._data["glyphs"] = glyph_list
+            glyphs = glyph_list
+        elif not glyphs._parent_font_ref or not glyphs._parent_font_ref():
+            # GlyphList without parent - set it
             glyphs._set_parent_font(self)
         return glyphs
 
@@ -575,6 +637,11 @@ class Font(BaseObject):
             Names,
             Features,
         )
+
+        # Work on a copy to avoid mutating the input
+        import copy
+
+        data = copy.copy(data)  # Shallow copy is enough for top-level keys
 
         # Extract complex nested structures
         glyphs_data = data.pop("glyphs", [])

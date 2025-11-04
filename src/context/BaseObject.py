@@ -147,6 +147,124 @@ class TrackedDict(dict):
         # Note: _mark_owner_dirty is called by __setitem__ for each item
 
 
+class TrackedList(list):
+    """
+    A list subclass that syncs modifications back to owner's _data.
+
+    When the list is modified (append, remove, etc.), it converts
+    objects to dicts and updates the owner's _data[field_name].
+    This allows natural list operations while maintaining dict storage.
+    """
+
+    def __init__(self, owner, field_name, item_class, *args, **kwargs):
+        """
+        Initialize TrackedList.
+
+        Args:
+            owner: The parent object (e.g., Layer, Shape)
+            field_name: The field name in owner._data (e.g., "shapes")
+            item_class: The class to convert dicts to (e.g., Shape)
+        """
+        super().__init__(*args, **kwargs)
+        self._owner_ref = weakref.ref(owner) if owner else None
+        self._field_name = field_name
+        self._item_class = item_class
+
+    def _set_parent(self, item):
+        """Set parent reference and enable tracking on an item."""
+        owner = self._owner_ref() if self._owner_ref else None
+        if owner:
+            # Set parent reference if supported
+            if hasattr(item, "_set_parent"):
+                item._set_parent(owner)
+            # Enable tracking if owner has it enabled
+            if (
+                hasattr(owner, "_tracking_enabled")
+                and owner._tracking_enabled
+                and hasattr(item, "_tracking_enabled")
+            ):
+                item._tracking_enabled = True
+
+    def _sync_to_data(self, mark_dirty=True):
+        """Convert all objects to dicts and update owner._data.
+
+        Args:
+            mark_dirty: Whether to mark owner dirty after sync.
+                       Set to False when initializing cache.
+        """
+        owner = self._owner_ref() if self._owner_ref else None
+        if owner:
+            # Convert objects to dicts
+            dict_list = [
+                item.to_dict() if hasattr(item, "to_dict") else item for item in self
+            ]
+            owner._data[self._field_name] = dict_list
+
+            # Mark owner dirty if tracking enabled and requested
+            if (
+                mark_dirty
+                and hasattr(owner, "_tracking_enabled")
+                and owner._tracking_enabled
+            ):
+                owner.mark_dirty()
+
+    def append(self, item):
+        self._set_parent(item)
+        super().append(item)
+        self._sync_to_data()
+
+    def extend(self, items, mark_dirty=True):
+        """Extend list with items.
+
+        Args:
+            items: Items to add
+            mark_dirty: Whether to mark owner dirty. Set False when caching.
+        """
+        for item in items:
+            self._set_parent(item)
+        super().extend(items)
+        self._sync_to_data(mark_dirty=mark_dirty)
+
+    def insert(self, index, item):
+        self._set_parent(item)
+        super().insert(index, item)
+        self._sync_to_data()
+
+    def remove(self, item):
+        super().remove(item)
+        self._sync_to_data()
+
+    def pop(self, index=-1):
+        result = super().pop(index)
+        self._sync_to_data()
+        return result
+
+    def clear(self):
+        super().clear()
+        self._sync_to_data()
+
+    def __setitem__(self, index, item):
+        self._set_parent(item)
+        super().__setitem__(index, item)
+        self._sync_to_data()
+
+    def __delitem__(self, index):
+        super().__delitem__(index)
+        self._sync_to_data()
+
+    def __iadd__(self, other):
+        for item in other:
+            self._set_parent(item)
+        result = super().__iadd__(other)
+        self._sync_to_data()
+        return result
+
+    def __imul__(self, other):
+        result = super().__imul__(other)
+        self._sync_to_data()
+        return result
+
+
 class I18NDictionary(dict):
     @classmethod
     def with_default(cls, s):
@@ -352,8 +470,11 @@ class BaseObject:
                         f"{type_names}, got {type(value).__name__}"
                     )
 
+        # Convert Python field name to file format name if aliased
+        storage_name = self._field_aliases.get(field_name, field_name)
+
         # Set the value and mark dirty with field name for tracking
-        self._data[field_name] = value
+        self._data[storage_name] = value
         if self._tracking_enabled:
             self.mark_dirty(field_name=field_name)
 
@@ -780,9 +901,8 @@ class BaseObject:
             # Skip empty values
             if not v and not isinstance(v, (int, float, bool)):
                 continue
-            # Use alias for serialization if defined
-            serialized_name = self._field_aliases.get(k, k)
-            towrite.append((serialized_name, v))
+            # _data already contains file format names, no alias needed
+            towrite.append((k, v))
 
         for ix, (k, v) in enumerate(towrite):
             if not self._write_one_line:
@@ -854,12 +974,12 @@ class BaseObject:
         Return dictionary representation.
 
         _data contains ONLY serializable data (dicts, lists, primitives).
-        This method returns it unchanged - instant operation.
+        This method returns a COPY to prevent external modifications.
 
         Returns:
-            dict: The object's data dictionary (already serializable)
+            dict: A copy of the object's data dictionary (serializable)
         """
-        return self._data
+        return dict(self._data)
 
     @classmethod
     def from_dict(cls, data):
@@ -876,11 +996,9 @@ class BaseObject:
         if not isinstance(data, dict):
             return data
 
-        # Normalize field names (handle aliases)
-        normalized = cls._normalize_fields(data)
+        # Deep copy nested lists/dicts to prevent mutation
+        import copy
 
-        # Create instance with dict-backed storage
-        # Just pass the normalized dict as _data
-        instance = cls(_data=normalized.copy())
+        instance = cls(_data=copy.deepcopy(data))
 
         return instance

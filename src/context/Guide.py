@@ -43,17 +43,19 @@ class Guide(BaseObject):
                     "b": color.b,
                     "a": color.a,
                 }
-            elif isinstance(color, (list, tuple)) and color:
+            if isinstance(color, (list, tuple)) and color:
                 a = color[3] if len(color) > 3 else 0
                 color = {"r": color[0], "g": color[1], "b": color[2], "a": a}
 
-            data = {"position": position, "name": name, "color": color}
+            # Store using file format name ("pos" instead of "position")
+            data = {"pos": position, "name": name, "color": color}
             data.update(kwargs)
             super().__init__(_data=data)
 
     @property
     def position(self):
-        pos = self._data.get("position")
+        # Read from aliased name in _data ("pos" in file format)
+        pos = self._data.get("pos")
         if pos:
             if isinstance(pos, dict):
                 return Position(**pos)

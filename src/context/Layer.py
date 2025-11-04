@@ -104,6 +104,11 @@ class Layer(BaseObject):
         if not hasattr(self, "_glyph_ref"):
             object.__setattr__(self, "_glyph_ref", None)
 
+        # Initialize list property caches
+        object.__setattr__(self, "_shapes_cache", None)
+        object.__setattr__(self, "_anchors_cache", None)
+        object.__setattr__(self, "_guides_cache", None)
+
     @property
     def width(self):
         return self._data.get("width", 0)
@@ -168,73 +173,106 @@ class Layer(BaseObject):
 
     @property
     def guides(self):
-        """Return Guide objects. _data stores dicts."""
-        guides_data = self._data.get("guides", [])
-        if not guides_data:
-            return []
+        """Return TrackedList of Guide objects. _data stores dicts."""
+        from .BaseObject import TrackedList
 
-        # Convert dicts to Guide objects (uncached for now)
-        guides = [Guide.from_dict(g) for g in guides_data]
-        for guide in guides:
+        # Return cached list if it exists
+        if self._guides_cache is not None:
+            return self._guides_cache
+
+        guides_data = self._data.get("guides", [])
+
+        # Convert dicts to Guide objects
+        guides_objects = [Guide.from_dict(g) for g in guides_data]
+        for guide in guides_objects:
             guide._set_parent(self)
-        return guides
+
+        # Create TrackedList and cache it
+        tracked = TrackedList(self, "guides", Guide)
+        tracked.extend(guides_objects, mark_dirty=False)
+        object.__setattr__(self, "_guides_cache", tracked)
+        return tracked
 
     @guides.setter
     def guides(self, value):
-        """Store as dicts in _data."""
+        """Store as dicts in _data and invalidate cache."""
         if value:
             dict_guides = [g.to_dict() if hasattr(g, "to_dict") else g for g in value]
             self._data["guides"] = dict_guides
         else:
             self._data["guides"] = value
+        # Invalidate cache
+        object.__setattr__(self, "_guides_cache", None)
         if self._tracking_enabled:
             self.mark_dirty()
 
     @property
     def shapes(self):
-        """Return Shape objects. _data stores dicts."""
-        shapes_data = self._data.get("shapes", [])
-        if not shapes_data:
-            return []
+        """Return TrackedList of Shape objects. _data stores dicts."""
+        from .BaseObject import TrackedList
 
-        # Convert dicts to Shape objects (uncached for now)
-        shapes = [Shape.from_dict(s) for s in shapes_data]
-        for shape in shapes:
+        # Return cached list if it exists
+        if self._shapes_cache is not None:
+            return self._shapes_cache
+
+        shapes_data = self._data.get("shapes", [])
+
+        # Convert dicts to Shape objects
+        shapes_objects = [Shape.from_dict(s) for s in shapes_data]
+        for shape in shapes_objects:
             shape._set_parent(self)
-        return shapes
+
+        # Create TrackedList and cache it
+        tracked = TrackedList(self, "shapes", Shape)
+        tracked.extend(shapes_objects, mark_dirty=False)
+        object.__setattr__(self, "_shapes_cache", tracked)
+        return tracked
 
     @shapes.setter
     def shapes(self, value):
-        """Store as dicts in _data."""
+        """Store as dicts in _data and invalidate cache."""
         if value:
             dict_shapes = [s.to_dict() if hasattr(s, "to_dict") else s for s in value]
             self._data["shapes"] = dict_shapes
         else:
             self._data["shapes"] = value
+        # Invalidate cache
+        object.__setattr__(self, "_shapes_cache", None)
         if self._tracking_enabled:
             self.mark_dirty()
 
     @property
     def anchors(self):
-        """Return Anchor objects. _data stores dicts."""
-        anchors_data = self._data.get("anchors", [])
-        if not anchors_data:
-            return []
+        """Return TrackedList of Anchor objects. _data stores dicts."""
+        from .BaseObject import TrackedList
 
-        # Convert dicts to Anchor objects (uncached for now)
-        anchors = [Anchor.from_dict(a) for a in anchors_data]
-        for anchor in anchors:
+        # Return cached list if it exists
+        if self._anchors_cache is not None:
+            return self._anchors_cache
+
+        anchors_data = self._data.get("anchors", [])
+
+        # Convert dicts to Anchor objects
+        anchors_objects = [Anchor.from_dict(a) for a in anchors_data]
+        for anchor in anchors_objects:
             anchor._set_parent(self)
-        return anchors
+
+        # Create TrackedList and cache it
+        tracked = TrackedList(self, "anchors", Anchor)
+        tracked.extend(anchors_objects, mark_dirty=False)
+        object.__setattr__(self, "_anchors_cache", tracked)
+        return tracked
 
     @anchors.setter
     def anchors(self, value):
-        """Store as dicts in _data."""
+        """Store as dicts in _data and invalidate cache."""
         if value:
             dict_anchors = [a.to_dict() if hasattr(a, "to_dict") else a for a in value]
             self._data["anchors"] = dict_anchors
         else:
             self._data["anchors"] = value
+        # Invalidate cache
+        object.__setattr__(self, "_anchors_cache", None)
         if self._tracking_enabled:
             self.mark_dirty()
 

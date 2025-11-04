@@ -59,6 +59,9 @@ class Shape(BaseObject):
             data.update(kwargs)
             super().__init__(_data=data)
 
+        # Initialize nodes cache
+        object.__setattr__(self, "_nodes_cache", None)
+
     @property
     def ref(self):
         return self._data.get("ref")
@@ -79,26 +82,39 @@ class Shape(BaseObject):
 
     @property
     def nodes(self):
-        """Return Node objects. _data stores dicts."""
+        """Return TrackedList of Node objects. _data stores dicts."""
+        from .BaseObject import TrackedList
+
         nodes_data = self._data.get("nodes")
         if not nodes_data:
             return None
 
-        # Convert dicts to Node objects (uncached for now)
-        nodes = [Node.from_dict(n) for n in nodes_data]
-        for node in nodes:
+        # Return cached list if it exists
+        if self._nodes_cache is not None:
+            return self._nodes_cache
+
+        # Convert dicts to Node objects
+        nodes_objects = [Node.from_dict(n) for n in nodes_data]
+        for node in nodes_objects:
             node._set_parent(self)
-        return nodes
+
+        # Create TrackedList and cache it
+        tracked = TrackedList(self, "nodes", Node)
+        tracked.extend(nodes_objects, mark_dirty=False)
+        object.__setattr__(self, "_nodes_cache", tracked)
+        return tracked
 
     @nodes.setter
     def nodes(self, value):
-        """Store as dicts in _data."""
+        """Store as dicts in _data and invalidate cache."""
         if value:
             # Convert Node objects to dicts
             dict_nodes = [n.to_dict() if hasattr(n, "to_dict") else n for n in value]
             self._data["nodes"] = dict_nodes
         else:
             self._data["nodes"] = value
+        # Invalidate cache
+        object.__setattr__(self, "_nodes_cache", None)
         if self._tracking_enabled:
             self.mark_dirty()
 
