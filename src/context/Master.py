@@ -231,14 +231,23 @@ class Master(BaseObject):
         """Create Master from dictionary, handling guides and kerning."""
         from .Guide import Guide
 
+        # Make a copy to avoid modifying the input data
+        data = data.copy()
+
         # Extract guides if present
         guides_data = data.pop("guides", [])
 
         # Handle kerning keys (convert from "a//b" to ("a", "b"))
         if "kerning" in data:
-            data["kerning"] = {
-                tuple(k.split("//")): v for k, v in data["kerning"].items()
-            }
+            kerning = {}
+            for k, v in data["kerning"].items():
+                # Check if key is already a tuple (from in-memory data)
+                if isinstance(k, tuple):
+                    kerning[k] = v
+                else:
+                    # Convert from string format "a//b" to tuple ("a", "b")
+                    kerning[tuple(k.split("//"))] = v
+            data["kerning"] = kerning
 
         # Handle name field - convert to I18NDictionary if needed
         if "name" in data and isinstance(data["name"], dict):

@@ -37,6 +37,30 @@ class Node(BaseObject):
             data.update(kwargs)
             super().__init__(_data=data)
 
+    @classmethod
+    def from_dict(cls, data):
+        """
+        Create Node from dict or list format.
+        
+        Args:
+            data: Either a list [x, y, type] or [x, y, type, userdata]
+                  or a dict with x, y, type keys
+        
+        Returns:
+            Node instance
+        """
+        if isinstance(data, list):
+            # Handle list format: [x, y, type] or [x, y, type, userdata]
+            if len(data) == 3:
+                return cls(data[0], data[1], data[2])
+            else:
+                # 4th element is format-specific data (dict or JSON)
+                x, y, node_type, formatspecific = data
+                return cls(x, y, node_type, _=formatspecific)
+        else:
+            # Handle dict format - use parent's from_dict
+            return super(Node, cls).from_dict(data)
+
     @property
     def x(self):
         """The x coordinate of the node."""

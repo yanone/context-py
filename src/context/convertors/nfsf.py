@@ -68,18 +68,19 @@ class Context(BaseConvertor):
                 self.font.names.user_data = v
         self.font.names._set_parent(self.font)
 
-        self.font.axes = [Axis(**j) for j in info.get("axes", [])]
+        self.font.axes = [Axis.from_dict(j) for j in info.get("axes", [])]
         for axis in self.font.axes:
             axis._set_parent(self.font)
 
-        self.font.instances = [Instance(**j) for j in info.get("instances", [])]
+        instances = [Instance.from_dict(j) for j in info.get("instances", [])]
+        self.font.instances = instances
         for instance in self.font.instances:
             instance._set_parent(self.font)
 
         self._load_masters(info.get("masters", []))
 
         for g in glyphs:
-            glyph = Glyph(**g)
+            glyph = Glyph.from_dict(g)
             glyph._set_parent(self.font)
             self.font.glyphs.append(glyph)
             for json_layer in self._load_file(glyph.babelfont_filename):
@@ -148,14 +149,11 @@ class Context(BaseConvertor):
 
     def _load_masters(self, masters):
         for json_master in masters:
-            if "kerning" in json_master:
-                json_master["kerning"] = {
-                    tuple(k.split("//")): v for k, v in json_master["kerning"].items()
-                }
-            master = Master(**json_master)
+            # Master.from_dict handles kerning conversion now
+            master = Master.from_dict(json_master)
             master.font = self.font
             master._set_parent(self.font)
-            # Guide conversion is handled by Master.guides property getter
+            # Guide conversion handled by Master.from_dict
             # Just ensure parent refs are set
             for guide in master.guides:
                 if not hasattr(guide, "_parent_ref") or guide._parent_ref is None:
@@ -166,7 +164,7 @@ class Context(BaseConvertor):
         # Extract components if present, they'll be added to shapes
         components = json_layer.pop("components", [])
 
-        layer = Layer(**json_layer)
+        layer = Layer.from_dict(json_layer)
         layer._font = self.font
         # Guide and anchor conversion handled by Layer properties
         # Just ensure parent refs are set
@@ -199,7 +197,7 @@ class Context(BaseConvertor):
             return s
 
         # Otherwise create Shape from dict
-        shape = Shape(**s)
+        shape = Shape.from_dict(s)
         shape._set_parent(layer)
         if shape.nodes:
             shape.nodes = [self._inflate_node(n) for n in shape.nodes]
@@ -209,12 +207,8 @@ class Context(BaseConvertor):
 
     def _inflate_node(self, n):
         # n can be [x, y, type] or [x, y, type, formatspecific]
-        if len(n) == 3:
-            return Node(*n)
-        else:
-            # 4th element is format-specific data (dict or JSON)
-            x, y, node_type, formatspecific = n
-            return Node(x, y, node_type, _=formatspecific)
+        # Node.from_dict handles both list and dict formats
+        return Node.from_dict(n)
 
     def _load_metadata(self, info):
         for k in ["note", "upm", "version", "date", "customOpenTypeValues"]:

@@ -70,7 +70,7 @@ class Guide(BaseObject):
         elif isinstance(value, (list, tuple)):
             angle = value[2] if len(value) > 2 else 0
             value = {"x": value[0], "y": value[1], "angle": angle}
-        
+
         # Validate that x and y are integers if value is a dict
         if isinstance(value, dict):
             if "x" in value and not isinstance(value["x"], int):
@@ -79,7 +79,7 @@ class Guide(BaseObject):
             if "y" in value and not isinstance(value["y"], int):
                 y_type = type(value["y"]).__name__
                 raise ValueError(f"Position y must be int, got {y_type}")
-        
+
         self._set_field("position", value)
 
     @property
