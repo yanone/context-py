@@ -979,6 +979,12 @@ class BaseObject:
         Returns:
             dict: A copy of the object's data dictionary (serializable)
         """
+
+        # CRITICAL INSTRUCTION:
+        # With dict-backed storage, _data already contains serializable data.
+        # Never overwrite this method to build dicts from properties
+        # We need to_dict() to be instant for performance.
+
         return dict(self._data)
 
     @classmethod
