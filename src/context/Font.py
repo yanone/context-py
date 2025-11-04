@@ -616,7 +616,7 @@ class Font(BaseObject):
         return result
 
     @classmethod
-    def from_dict(cls, data):
+    def from_dict(cls, data, _copy=True):
         """
         Create a Font instance from a complete dictionary representation.
         This is the inverse of to_dict() and handles the full font structure
@@ -624,6 +624,8 @@ class Font(BaseObject):
 
         Args:
             data: Complete dictionary with font data
+            _copy: If True, copy data to prevent mutation. Set False when
+                   loading from disk for performance.
 
         Returns:
             Font instance
@@ -638,10 +640,11 @@ class Font(BaseObject):
             Features,
         )
 
-        # Work on a copy to avoid mutating the input
-        import copy
+        # Work on a copy to avoid mutating the input (unless loading from disk)
+        if _copy:
+            import copy
 
-        data = copy.copy(data)  # Shallow copy is enough for top-level keys
+            data = copy.copy(data)  # Shallow copy is enough for top-level keys
 
         # Extract complex nested structures
         glyphs_data = data.pop("glyphs", [])

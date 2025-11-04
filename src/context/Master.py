@@ -260,12 +260,13 @@ class Master(BaseObject):
         return result
 
     @classmethod
-    def from_dict(cls, data):
+    def from_dict(cls, data, _copy=True):
         """Create Master from dictionary, handling guides and kerning."""
         from .Guide import Guide
 
-        # Make a copy to avoid modifying the input data
-        data = data.copy()
+        # Make a copy to avoid modifying the input data (unless loading from disk)
+        if _copy:
+            data = data.copy()
 
         # Extract guides if present
         guides_data = data.pop("guides", [])

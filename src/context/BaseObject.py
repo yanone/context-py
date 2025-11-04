@@ -982,13 +982,15 @@ class BaseObject:
         return dict(self._data)
 
     @classmethod
-    def from_dict(cls, data):
+    def from_dict(cls, data, _copy=True):
         """
         Create an instance from a dictionary representation.
         This is the inverse of to_dict().
 
         Args:
             data: Dictionary with object data
+            _copy: If True, deep copy the data to prevent mutation.
+                   Set to False when loading from disk for performance.
 
         Returns:
             Instance of the class
@@ -996,9 +998,13 @@ class BaseObject:
         if not isinstance(data, dict):
             return data
 
-        # Deep copy nested lists/dicts to prevent mutation
-        import copy
+        # Deep copy nested lists/dicts to prevent mutation during round-trips
+        # Skip copy when loading from disk (_copy=False) for performance
+        if _copy:
+            import copy
 
-        instance = cls(_data=copy.deepcopy(data))
+            data = copy.deepcopy(data)
+
+        instance = cls(_data=data)
 
         return instance

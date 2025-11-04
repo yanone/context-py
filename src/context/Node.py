@@ -38,13 +38,15 @@ class Node(BaseObject):
             super().__init__(_data=data)
 
     @classmethod
-    def from_dict(cls, data):
+    def from_dict(cls, data, _copy=True):
         """
         Create Node from dict or list format.
 
         Args:
             data: Either a list [x, y, type] or [x, y, type, userdata]
                   or a dict with x, y, type keys
+            _copy: If True, copy data to prevent mutation. Set False when
+                   loading from disk for performance.
 
         Returns:
             Node instance
@@ -59,7 +61,7 @@ class Node(BaseObject):
                 return cls(x, y, node_type, _=formatspecific)
         else:
             # Handle dict format - use parent's from_dict
-            return super(Node, cls).from_dict(data)
+            return super(Node, cls).from_dict(data, _copy=_copy)
 
     @property
     def x(self):

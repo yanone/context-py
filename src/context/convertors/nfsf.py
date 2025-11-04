@@ -68,11 +68,13 @@ class Context(BaseConvertor):
                 self.font.names.user_data = v
         self.font.names._set_parent(self.font)
 
-        self.font.axes = [Axis.from_dict(j) for j in info.get("axes", [])]
+        self.font.axes = [Axis.from_dict(j, _copy=False) for j in info.get("axes", [])]
         for axis in self.font.axes:
             axis._set_parent(self.font)
 
-        instances = [Instance.from_dict(j) for j in info.get("instances", [])]
+        instances = [
+            Instance.from_dict(j, _copy=False) for j in info.get("instances", [])
+        ]
         self.font.instances = instances
         for instance in self.font.instances:
             instance._set_parent(self.font)
@@ -80,7 +82,7 @@ class Context(BaseConvertor):
         self._load_masters(info.get("masters", []))
 
         for g in glyphs:
-            glyph = Glyph.from_dict(g)
+            glyph = Glyph.from_dict(g, _copy=False)
             glyph._set_parent(self.font)
             self.font.glyphs.append(glyph)
             for json_layer in self._load_file(glyph.babelfont_filename):
@@ -150,7 +152,7 @@ class Context(BaseConvertor):
     def _load_masters(self, masters):
         for json_master in masters:
             # Master.from_dict handles kerning conversion now
-            master = Master.from_dict(json_master)
+            master = Master.from_dict(json_master, _copy=False)
             master.font = self.font
             master._set_parent(self.font)
             # Guide conversion handled by Master.from_dict
@@ -164,23 +166,22 @@ class Context(BaseConvertor):
         # Extract components if present, they'll be added to shapes
         components = json_layer.pop("components", [])
 
-        layer = Layer.from_dict(json_layer)
+        layer = Layer.from_dict(json_layer, _copy=False)
         layer._font = self.font
-        # Guide and anchor conversion handled by Layer properties
-        # Just ensure parent refs are set
-        for guide in layer.guides:
-            if not hasattr(guide, "_parent_ref") or guide._parent_ref is None:
-                guide._set_parent(layer)
-        for anchor in layer.anchors:
-            if not hasattr(anchor, "_parent_ref") or anchor._parent_ref is None:
-                anchor._set_parent(layer)
 
-        # Inflate regular shapes
-        layer.shapes = [self._inflate_shape(layer, s) for s in layer.shapes]
+        # Work directly with _data to avoid property overhead during loading
+        # Inflate shapes (including components) directly in _data
+        shapes_data = layer._data.get("shapes", [])
+        inflated_shapes = [self._inflate_shape(layer, s) for s in shapes_data]
 
-        # Inflate components (which are also Shape objects)
+        # Add components to shapes
         for component in components:
-            layer.shapes.append(self._inflate_shape(layer, component))
+            inflated_shapes.append(self._inflate_shape(layer, component))
+
+        # Store as dicts back in _data (shapes will be Shape objects)
+        layer._data["shapes"] = [
+            s.to_dict() if hasattr(s, "to_dict") else s for s in inflated_shapes
+        ]
 
         return layer
 
@@ -189,26 +190,29 @@ class Context(BaseConvertor):
         # just set parent
         if isinstance(s, Shape):
             s._set_parent(layer)
-            # Ensure nodes have parent refs
-            if s.nodes:
-                for node in s.nodes:
-                    if not hasattr(node, "_parent_ref") or node._parent_ref is None:
-                        node._set_parent(s)
             return s
 
         # Otherwise create Shape from dict
-        shape = Shape.from_dict(s)
+        shape = Shape.from_dict(s, _copy=False)
         shape._set_parent(layer)
-        if shape.nodes:
-            shape.nodes = [self._inflate_node(n) for n in shape.nodes]
-            for node in shape.nodes:
+
+        # Work directly with _data to avoid property overhead
+        # Inflate nodes directly in _data
+        nodes_data = shape._data.get("nodes", [])
+        if nodes_data:
+            inflated_nodes = [self._inflate_node(n) for n in nodes_data]
+            for node in inflated_nodes:
                 node._set_parent(shape)
+            # Store as dicts back in _data
+            shape._data["nodes"] = [
+                n.to_dict() if hasattr(n, "to_dict") else n for n in inflated_nodes
+            ]
         return shape
 
     def _inflate_node(self, n):
         # n can be [x, y, type] or [x, y, type, formatspecific]
         # Node.from_dict handles both list and dict formats
-        return Node.from_dict(n)
+        return Node.from_dict(n, _copy=False)
 
     def _load_metadata(self, info):
         for k in ["note", "upm", "version", "date", "customOpenTypeValues"]:
