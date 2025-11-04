@@ -4,6 +4,19 @@ from .BaseObject import BaseObject
 class Anchor(BaseObject):
     """An anchor point in a glyph."""
 
+    # Define validation rules for each field
+    _field_types = {
+        "name": {
+            "data_type": str,
+        },
+        "x": {
+            "data_type": int,
+        },
+        "y": {
+            "data_type": int,
+        },
+    }
+
     def __init__(self, name=None, x=0, y=0, _data=None, **kwargs):
         """Initialize Anchor with dict-backed storage."""
         if _data is not None:
@@ -19,9 +32,7 @@ class Anchor(BaseObject):
 
     @name.setter
     def name(self, value):
-        self._data["name"] = value
-        if self._tracking_enabled:
-            self.mark_dirty()
+        self._set_field("name", value)
 
     @property
     def x(self):
@@ -29,9 +40,7 @@ class Anchor(BaseObject):
 
     @x.setter
     def x(self, value):
-        self._data["x"] = value
-        if self._tracking_enabled:
-            self.mark_dirty()
+        self._set_field("x", value)
 
     @property
     def y(self):
@@ -39,6 +48,4 @@ class Anchor(BaseObject):
 
     @y.setter
     def y(self, value):
-        self._data["y"] = value
-        if self._tracking_enabled:
-            self.mark_dirty()
+        self._set_field("y", value)
