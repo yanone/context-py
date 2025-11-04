@@ -60,7 +60,9 @@ def font_file(tmp_path):
     # Add guide to layer
     guide = Guide(name="baseline", position=Position(x=0, y=0, angle=0))
     guide._set_parent(layer_a)
-    layer_a.guides.append(guide)
+    guides = layer_a.guides
+    guides.append(guide)
+    layer_a.guides = guides
 
     # Add shape with nodes
     shape = Shape(
@@ -73,12 +75,16 @@ def font_file(tmp_path):
         closed=True,
     )
     shape._set_parent(layer_a)
-    layer_a.shapes.append(shape)
+    shapes = layer_a.shapes
+    shapes.append(shape)
+    layer_a.shapes = shapes
 
     # Add anchor
     anchor = Anchor(name="top", x=300, y=700)
     anchor._set_parent(layer_a)
-    layer_a.anchors.append(anchor)
+    anchors = layer_a.anchors
+    anchors.append(anchor)
+    layer_a.anchors = anchors
 
     glyph_a.layers.append(layer_a)
     font.glyphs.append(glyph_a)
@@ -105,7 +111,9 @@ def font_file(tmp_path):
     # Add component (which is a Shape with ref attribute)
     component = Shape(ref="B", transform=[1, 0, 0, 1, 0, 0])
     component._set_parent(layer_c)
-    layer_c.shapes.append(component)
+    shapes = layer_c.shapes
+    shapes.append(component)
+    layer_c.shapes = shapes
 
     glyph_c.layers.append(layer_c)
     font.glyphs.append(glyph_c)

@@ -179,11 +179,18 @@ class Master(BaseObject):
 
     @property
     def font(self):
-        return self._data.get("font")
+        """Get font via weak reference (back-reference)."""
+        if hasattr(self, "_font_ref") and self._font_ref:
+            return self._font_ref()
+        return None
 
     @font.setter
     def font(self, value):
-        self._data["font"] = value
+        """Set font using weak reference to avoid circular references."""
+        import weakref
+
+        font_ref = weakref.ref(value) if value else None
+        object.__setattr__(self, "_font_ref", font_ref)
 
     def _mark_children_clean(self, context, build_cache=False):
         """Recursively mark children clean."""

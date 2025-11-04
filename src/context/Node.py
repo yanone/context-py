@@ -41,11 +41,11 @@ class Node(BaseObject):
     def from_dict(cls, data):
         """
         Create Node from dict or list format.
-        
+
         Args:
             data: Either a list [x, y, type] or [x, y, type, userdata]
                   or a dict with x, y, type keys
-        
+
         Returns:
             Node instance
         """

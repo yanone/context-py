@@ -168,66 +168,73 @@ class Layer(BaseObject):
 
     @property
     def guides(self):
+        """Return Guide objects. _data stores dicts."""
         guides_data = self._data.get("guides", [])
-        # Convert dicts to Guide objects on first access
-        if guides_data and isinstance(guides_data[0], dict):
-            guides = [Guide.from_dict(g) for g in guides_data]
-            for guide in guides:
-                guide._set_parent(self)
-            self._data["guides"] = guides
-        return self._data.get("guides", [])
+        if not guides_data:
+            return []
+
+        # Convert dicts to Guide objects (uncached for now)
+        guides = [Guide.from_dict(g) for g in guides_data]
+        for guide in guides:
+            guide._set_parent(self)
+        return guides
 
     @guides.setter
     def guides(self, value):
-        if value and not isinstance(value[0] if value else None, dict):
-            value = [g.to_dict() if hasattr(g, "to_dict") else g for g in value]
-        self._data["guides"] = value
+        """Store as dicts in _data."""
+        if value:
+            dict_guides = [g.to_dict() if hasattr(g, "to_dict") else g for g in value]
+            self._data["guides"] = dict_guides
+        else:
+            self._data["guides"] = value
         if self._tracking_enabled:
             self.mark_dirty()
 
     @property
     def shapes(self):
+        """Return Shape objects. _data stores dicts."""
         shapes_data = self._data.get("shapes", [])
-        # Convert dicts to Shape objects on first access
-        if shapes_data and isinstance(shapes_data[0], dict):
-            shapes = [Shape.from_dict(s) for s in shapes_data]
-            for shape in shapes:
-                shape._set_parent(self)
-            self._data["shapes"] = shapes
-        return self._data.get("shapes", [])
+        if not shapes_data:
+            return []
+
+        # Convert dicts to Shape objects (uncached for now)
+        shapes = [Shape.from_dict(s) for s in shapes_data]
+        for shape in shapes:
+            shape._set_parent(self)
+        return shapes
 
     @shapes.setter
     def shapes(self, value):
-        # Store Shape objects directly (don't convert to dicts)
-        # This ensures Shape.write() method is used during serialization
+        """Store as dicts in _data."""
         if value:
-            # Convert dicts to Shape objects if needed
-            if not isinstance(value[0], Shape):
-                value = [Shape.from_dict(s) for s in value]
-            # Set parent for all shapes
-            for shape in value:
-                if hasattr(shape, "_set_parent"):
-                    shape._set_parent(self)
-        self._data["shapes"] = value
+            dict_shapes = [s.to_dict() if hasattr(s, "to_dict") else s for s in value]
+            self._data["shapes"] = dict_shapes
+        else:
+            self._data["shapes"] = value
         if self._tracking_enabled:
             self.mark_dirty()
 
     @property
     def anchors(self):
+        """Return Anchor objects. _data stores dicts."""
         anchors_data = self._data.get("anchors", [])
-        # Convert dicts to Anchor objects on first access
-        if anchors_data and isinstance(anchors_data[0], dict):
-            anchors = [Anchor.from_dict(a) for a in anchors_data]
-            for anchor in anchors:
-                anchor._set_parent(self)
-            self._data["anchors"] = anchors
-        return self._data.get("anchors", [])
+        if not anchors_data:
+            return []
+
+        # Convert dicts to Anchor objects (uncached for now)
+        anchors = [Anchor.from_dict(a) for a in anchors_data]
+        for anchor in anchors:
+            anchor._set_parent(self)
+        return anchors
 
     @anchors.setter
     def anchors(self, value):
-        if value and not isinstance(value[0] if value else None, dict):
-            value = [a.to_dict() if hasattr(a, "to_dict") else a for a in value]
-        self._data["anchors"] = value
+        """Store as dicts in _data."""
+        if value:
+            dict_anchors = [a.to_dict() if hasattr(a, "to_dict") else a for a in value]
+            self._data["anchors"] = dict_anchors
+        else:
+            self._data["anchors"] = value
         if self._tracking_enabled:
             self.mark_dirty()
 

@@ -199,8 +199,16 @@ class BaseObject:
     """
     Base class for all font objects with dict-backed storage.
 
-    All data is stored in self._data dict. Properties provide field access.
-    This makes serialization instant: to_dict() just returns _data.
+    All data is stored in self._data dict as serializable dicts/lists/primitives.
+    Properties convert dicts to objects on read, objects to dicts on write.
+
+    This makes serialization instant: to_dict() just returns _data unchanged.
+
+    IMPORTANT: List properties return NEW objects each time accessed.
+    To modify lists, use assignment pattern:
+        items = obj.items
+        items.append(new_item)
+        obj.items = items
     """
 
     # Field aliasing: Classes can define a _field_aliases dict mapping Python
@@ -754,17 +762,15 @@ class BaseObject:
         towrite = []
 
         # With dict-backed storage, iterate _data directly
-        # Skip internal tracking fields, back-references, and empty values
+        # Skip internal tracking fields and empty values
+        # Note: Back-references like Master.font are no longer in _data
         skip_keys = {
             "_dirty_flags",
             "_dirty_fields",
             "_parent_ref",
-            "_font_ref",
-            "_glyph_ref",
             "_user_data_snapshot",
             "_skip_user_data_check",
             "_tracking_enabled",
-            "font",  # Master.font is a back-ref
         }
 
         for k, v in self._data.items():
@@ -846,16 +852,14 @@ class BaseObject:
     def to_dict(self, use_cache=True):
         """
         Return dictionary representation.
-        With dict-backed storage, this is instant - just return _data.
+
+        _data contains ONLY serializable data (dicts, lists, primitives).
+        This method returns it unchanged - instant operation.
 
         Returns:
-            dict: The object's data dictionary
+            dict: The object's data dictionary (already serializable)
         """
-        # For dict-backed objects, just return _data with nested conversion
-        result = {}
-        for key, value in self._data.items():
-            result[key] = self._convert_value_to_dict(value)
-        return result
+        return self._data
 
     @classmethod
     def from_dict(cls, data):

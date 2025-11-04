@@ -79,53 +79,26 @@ class Shape(BaseObject):
 
     @property
     def nodes(self):
+        """Return Node objects. _data stores dicts."""
         nodes_data = self._data.get("nodes")
         if not nodes_data:
             return None
-        # Convert dicts or lists back to Node objects
-        if nodes_data and not isinstance(nodes_data[0], Node):
-            if isinstance(nodes_data[0], dict):
-                # from dict-backed storage
-                nodes = [Node.from_dict(n) for n in nodes_data]
-            elif isinstance(nodes_data[0], (list, tuple)):
-                # from JSON serialization [x, y, type] or [x, y, type, userdata]
-                nodes = []
-                for n in nodes_data:
-                    if len(n) == 3:
-                        nodes.append(Node(n[0], n[1], n[2]))
-                    else:
-                        nodes.append(Node(n[0], n[1], n[2], _=n[3]))
-            else:
-                # Already Node objects
-                return nodes_data
 
-            for node in nodes:
-                node._set_parent(self)
-            self._data["nodes"] = nodes
-        return self._data.get("nodes")
+        # Convert dicts to Node objects (uncached for now)
+        nodes = [Node.from_dict(n) for n in nodes_data]
+        for node in nodes:
+            node._set_parent(self)
+        return nodes
 
     @nodes.setter
     def nodes(self, value):
-        # Store Node objects directly (don't convert to dicts)
-        # This ensures Node.write() method is used during serialization
+        """Store as dicts in _data."""
         if value:
-            # Convert dicts/lists to Node objects if needed
-            if not isinstance(value[0], Node):
-                if isinstance(value[0], dict):
-                    value = [Node.from_dict(n) for n in value]
-                elif isinstance(value[0], (list, tuple)):
-                    nodes = []
-                    for n in value:
-                        if len(n) == 3:
-                            nodes.append(Node(n[0], n[1], n[2]))
-                        else:
-                            nodes.append(Node(n[0], n[1], n[2], _=n[3]))
-                    value = nodes
-            # Set parent for all nodes
-            for node in value:
-                if hasattr(node, "_set_parent"):
-                    node._set_parent(self)
-        self._data["nodes"] = value
+            # Convert Node objects to dicts
+            dict_nodes = [n.to_dict() if hasattr(n, "to_dict") else n for n in value]
+            self._data["nodes"] = dict_nodes
+        else:
+            self._data["nodes"] = value
         if self._tracking_enabled:
             self.mark_dirty()
 
