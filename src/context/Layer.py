@@ -182,10 +182,13 @@ class Layer(BaseObject):
 
         guides_data = self._data.get("guides", [])
 
-        # Convert dicts to Guide objects
-        guides_objects = [Guide.from_dict(g) for g in guides_data]
+        # Convert dicts to Guide objects (no deepcopy needed for _data)
+        guides_objects = [Guide.from_dict(g, _copy=False) for g in guides_data]
         for guide in guides_objects:
             guide._set_parent(self)
+            # Enable tracking if parent has it enabled
+            if self._tracking_enabled:
+                object.__setattr__(guide, "_tracking_enabled", True)
 
         # Create TrackedList and cache it
         tracked = TrackedList(self, "guides", Guide)
@@ -217,10 +220,13 @@ class Layer(BaseObject):
 
         shapes_data = self._data.get("shapes", [])
 
-        # Convert dicts to Shape objects
-        shapes_objects = [Shape.from_dict(s) for s in shapes_data]
+        # Convert dicts to Shape objects (no deepcopy needed for _data)
+        shapes_objects = [Shape.from_dict(s, _copy=False) for s in shapes_data]
         for shape in shapes_objects:
             shape._set_parent(self)
+            # Enable tracking if parent has it enabled
+            if self._tracking_enabled:
+                object.__setattr__(shape, "_tracking_enabled", True)
 
         # Create TrackedList and cache it
         tracked = TrackedList(self, "shapes", Shape)
@@ -252,10 +258,13 @@ class Layer(BaseObject):
 
         anchors_data = self._data.get("anchors", [])
 
-        # Convert dicts to Anchor objects
-        anchors_objects = [Anchor.from_dict(a) for a in anchors_data]
+        # Convert dicts to Anchor objects (no deepcopy needed for _data)
+        anchors_objects = [Anchor.from_dict(a, _copy=False) for a in anchors_data]
         for anchor in anchors_objects:
             anchor._set_parent(self)
+            # Enable tracking if parent has it enabled
+            if self._tracking_enabled:
+                object.__setattr__(anchor, "_tracking_enabled", True)
 
         # Create TrackedList and cache it
         tracked = TrackedList(self, "anchors", Anchor)
@@ -350,6 +359,7 @@ class Layer(BaseObject):
 
     def _mark_children_clean(self, context, build_cache=False):
         """Recursively mark children clean."""
+        # Use properties to get children - they handle tracking initialization
         for shape in self.shapes:
             shape.mark_clean(context, recursive=True, build_cache=build_cache)
         for anchor in self.anchors:

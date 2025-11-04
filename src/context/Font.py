@@ -126,12 +126,21 @@ class Font(BaseObject):
 
         # Return cached list if it exists
         if self._axes_cache is not None:
+            # Check if cached objects need tracking enabled
+            if self._tracking_enabled:
+                for axis in self._axes_cache:
+                    if not axis._tracking_enabled:
+                        object.__setattr__(axis, "_tracking_enabled", True)
             return self._axes_cache
 
         axes_data = self._data.get("axes", [])
 
-        # Convert dicts to Axis objects
-        axes_objects = [Axis.from_dict(a) for a in axes_data]
+        # Convert dicts to Axis objects (no deepcopy needed for _data)
+        axes_objects = [Axis.from_dict(a, _copy=False) for a in axes_data]
+        for axis in axes_objects:
+            # Enable tracking if parent has it enabled
+            if self._tracking_enabled:
+                object.__setattr__(axis, "_tracking_enabled", True)
 
         # Create TrackedList and cache it
         tracked = TrackedList(self, "axes", Axis)
@@ -159,12 +168,21 @@ class Font(BaseObject):
 
         # Return cached list if it exists
         if self._instances_cache is not None:
+            # Check if cached objects need tracking enabled
+            if self._tracking_enabled:
+                for instance in self._instances_cache:
+                    if not instance._tracking_enabled:
+                        object.__setattr__(instance, "_tracking_enabled", True)
             return self._instances_cache
 
         instances_data = self._data.get("instances", [])
 
-        # Convert dicts to Instance objects
-        instances_objects = [Instance.from_dict(i) for i in instances_data]
+        # Convert dicts to Instance objects (no deepcopy needed for _data)
+        instances_objects = [Instance.from_dict(i, _copy=False) for i in instances_data]
+        for instance in instances_objects:
+            # Enable tracking if parent has it enabled
+            if self._tracking_enabled:
+                object.__setattr__(instance, "_tracking_enabled", True)
 
         # Create TrackedList and cache it
         tracked = TrackedList(self, "instances", Instance)
@@ -194,16 +212,27 @@ class Font(BaseObject):
 
         # Return cached list if it exists
         if self._masters_cache is not None:
+            # Check if cached objects need tracking enabled
+            if self._tracking_enabled:
+                for master in self._masters_cache:
+                    if not master._tracking_enabled:
+                        object.__setattr__(master, "_tracking_enabled", True)
+                    # Ensure guides field exists (may be missing from loaded files)
+                    if "guides" not in master._data:
+                        master._data["guides"] = []
             return self._masters_cache
 
         masters_data = self._data.get("masters", [])
 
-        # Convert dicts to Master objects
-        masters_objects = [Master.from_dict(m) for m in masters_data]
+        # Convert dicts to Master objects (no deepcopy needed for _data)
+        masters_objects = [Master.from_dict(m, _copy=False) for m in masters_data]
 
-        # Set font reference on each master
+        # Set font reference on each master and enable tracking
         for master in masters_objects:
             master.font = self
+            # Enable tracking if parent has it enabled
+            if self._tracking_enabled:
+                object.__setattr__(master, "_tracking_enabled", True)
 
         # Create TrackedList and cache it
         tracked = TrackedList(self, "masters", Master)
@@ -408,15 +437,59 @@ class Font(BaseObject):
 
     def _mark_children_clean(self, context, build_cache=False):
         """Recursively mark children clean."""
-        for glyph in self.glyphs:
+        # Work directly with _data to avoid property overhead
+        from context import Glyph, Master, Axis, Instance
+
+        # Mark glyphs clean - iterate GlyphList dict
+        for glyph_name, glyph_data in self.glyphs.items():
+            if isinstance(glyph_data, dict):
+                glyph = Glyph.from_dict(glyph_data, _copy=False)
+                glyph._set_parent(self)
+                # Enable tracking if parent has it enabled
+                if self._tracking_enabled:
+                    object.__setattr__(glyph, "_tracking_enabled", True)
+            elif isinstance(glyph_data, Glyph):
+                # Already a Glyph object
+                glyph = glyph_data
+            else:
+                continue
+
             glyph.mark_clean(context, recursive=True, build_cache=build_cache)
-        for master in self.masters:
-            master.mark_clean(context, recursive=True, build_cache=build_cache)
-        for axis in self.axes:
-            axis.mark_clean(context, recursive=False, build_cache=build_cache)
-        for instance in self.instances:
-            instance.mark_clean(context, recursive=False, build_cache=build_cache)
-        # Clean names and features
+
+        # Mark masters clean
+        masters_data = self._data.get("masters", [])
+        for master_dict in masters_data:
+            if isinstance(master_dict, dict):
+                master = Master.from_dict(master_dict, _copy=False)
+                master._set_parent(self)
+                # Enable tracking if parent has it enabled
+                if self._tracking_enabled:
+                    object.__setattr__(master, "_tracking_enabled", True)
+                master.mark_clean(context, recursive=True, build_cache=build_cache)
+
+        # Mark axes clean
+        axes_data = self._data.get("axes", [])
+        for axis_dict in axes_data:
+            if isinstance(axis_dict, dict):
+                axis = Axis.from_dict(axis_dict, _copy=False)
+                axis._set_parent(self)
+                # Enable tracking if parent has it enabled
+                if self._tracking_enabled:
+                    object.__setattr__(axis, "_tracking_enabled", True)
+                axis.mark_clean(context, recursive=False, build_cache=build_cache)
+
+        # Mark instances clean
+        instances_data = self._data.get("instances", [])
+        for instance_dict in instances_data:
+            if isinstance(instance_dict, dict):
+                instance = Instance.from_dict(instance_dict, _copy=False)
+                instance._set_parent(self)
+                # Enable tracking if parent has it enabled
+                if self._tracking_enabled:
+                    object.__setattr__(instance, "_tracking_enabled", True)
+                instance.mark_clean(context, recursive=False, build_cache=build_cache)
+
+        # Clean names and features (these don't need from_dict)
         self.names.mark_clean(context, recursive=False, build_cache=build_cache)
         self.features.mark_clean(context, recursive=False, build_cache=build_cache)
 
@@ -577,6 +650,19 @@ class Font(BaseObject):
                     log.error(f"Error in on_error callback: {e}")
             # Re-raise the original error
             raise
+
+    def write(self, stream, indent=0):
+        """Override write to sync cached objects to _data before serialization."""
+        # Sync masters: convert cached Master objects back to dicts
+        if self._masters_cache is not None:
+            self._data["masters"] = [m.to_dict() for m in self._masters_cache]
+
+        # Sync instances: convert cached Instance objects back to dicts
+        if self._instances_cache is not None:
+            self._data["instances"] = [i.to_dict() for i in self._instances_cache]
+
+        # Call parent write()
+        super().write(stream, indent)
 
     def to_dict(self, use_cache=True):
         """

@@ -93,10 +93,13 @@ class Shape(BaseObject):
         if self._nodes_cache is not None:
             return self._nodes_cache
 
-        # Convert dicts to Node objects
-        nodes_objects = [Node.from_dict(n) for n in nodes_data]
+        # Convert dicts to Node objects (no deepcopy needed for _data)
+        nodes_objects = [Node.from_dict(n, _copy=False) for n in nodes_data]
         for node in nodes_objects:
             node._set_parent(self)
+            # Enable tracking if parent has it enabled
+            if self._tracking_enabled:
+                object.__setattr__(node, "_tracking_enabled", True)
 
         # Create TrackedList and cache it
         tracked = TrackedList(self, "nodes", Node)
@@ -144,8 +147,18 @@ class Shape(BaseObject):
 
     def _mark_children_clean(self, context, build_cache=False):
         """Recursively mark children clean."""
-        if self.nodes:
-            for node in self.nodes:
+        # Work directly with _data to avoid property overhead
+        from context import Node
+
+        nodes_data = self._data.get("nodes", [])
+        if nodes_data:
+            for node_data in nodes_data:
+                # Create Node without deepcopy (_copy=False)
+                node = Node.from_dict(node_data, _copy=False)
+                node._set_parent(self)
+                # Enable tracking if parent has it enabled
+                if self._tracking_enabled:
+                    object.__setattr__(node, "_tracking_enabled", True)
                 node.mark_clean(context, recursive=True, build_cache=build_cache)
 
     def write(self, stream, indent=0):

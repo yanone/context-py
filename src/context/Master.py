@@ -63,10 +63,12 @@ class Master(BaseObject):
                     i18n = I18NDictionary()
                     i18n.update(_data["name"])
                     _data["name"] = i18n
+            # Ensure guides exists (default to empty list)
+            if "guides" not in _data:
+                _data["guides"] = []
             # Convert guides
-            if "guides" in _data and _data["guides"]:
-                if isinstance(_data["guides"][0], dict):
-                    _data["guides"] = [Guide.from_dict(g) for g in _data["guides"]]
+            elif _data["guides"] and isinstance(_data["guides"][0], dict):
+                _data["guides"] = [Guide.from_dict(g) for g in _data["guides"]]
             super().__init__(_data=_data)
         else:
             # Convert name to I18NDictionary if needed

@@ -94,11 +94,20 @@ class Glyph(BaseObject):
             self._data["layers"] = layers_data
         # Convert dicts to Layer objects on first access
         elif layers_data and isinstance(layers_data[0], dict):
-            layers = [Layer.from_dict(lyr) for lyr in layers_data]
+            layers = [Layer.from_dict(lyr, _copy=False) for lyr in layers_data]
             for layer in layers:
                 layer._set_parent(self)
+                # Enable tracking if parent has it enabled
+                if self._tracking_enabled:
+                    object.__setattr__(layer, "_tracking_enabled", True)
             self._data["layers"] = layers
             layers_data = layers
+        # Check if existing Layer objects need tracking enabled
+        elif layers_data and hasattr(layers_data[0], "_tracking_enabled"):
+            if self._tracking_enabled:
+                for layer in layers_data:
+                    if not layer._tracking_enabled:
+                        object.__setattr__(layer, "_tracking_enabled", True)
         return layers_data
 
     @layers.setter
@@ -127,7 +136,25 @@ class Glyph(BaseObject):
 
     def _mark_children_clean(self, context, build_cache=False):
         """Recursively mark children clean."""
-        for layer in self.layers:
+        # Work directly with _data to avoid property overhead
+        from context import Layer
+
+        layers_data = self._data.get("layers", [])
+        for layer_data in layers_data:
+            if isinstance(layer_data, dict):
+                # Create Layer without deepcopy (_copy=False)
+                layer = Layer.from_dict(layer_data, _copy=False)
+                layer._glyph = self
+                layer._set_parent(self)
+                # Enable tracking if parent has it enabled
+                if self._tracking_enabled:
+                    object.__setattr__(layer, "_tracking_enabled", True)
+            elif isinstance(layer_data, Layer):
+                # Already a Layer object
+                layer = layer_data
+            else:
+                continue
+
             layer.mark_clean(context, recursive=True, build_cache=build_cache)
 
     @property
@@ -145,6 +172,31 @@ class GlyphList(dict):
         import weakref
 
         self._parent_font_ref = weakref.ref(font) if font else None
+
+    def __getitem__(self, key):
+        """Get glyph by name, converting dict to Glyph object if needed."""
+        value = super().__getitem__(key)
+        if isinstance(value, dict):
+            # Convert dict to Glyph object
+            glyph = Glyph.from_dict(value, _copy=False)
+            # Set parent font
+            if self._parent_font_ref:
+                font = self._parent_font_ref()
+                if font:
+                    glyph._set_parent(font)
+                    # Enable tracking if parent has it enabled
+                    if font._tracking_enabled:
+                        object.__setattr__(glyph, "_tracking_enabled", True)
+            # Store the converted object back
+            super().__setitem__(key, glyph)
+            return glyph
+        elif isinstance(value, Glyph):
+            # Already a Glyph object - check if tracking needs to be enabled
+            if self._parent_font_ref:
+                font = self._parent_font_ref()
+                if font and font._tracking_enabled and not value._tracking_enabled:
+                    object.__setattr__(value, "_tracking_enabled", True)
+        return value
 
     def append(self, thing):
         self[thing.name] = thing

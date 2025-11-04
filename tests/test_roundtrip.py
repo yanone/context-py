@@ -595,7 +595,7 @@ def test_field_aliases_in_files(comprehensive_font, tmp_path):
         info_data = json.load(f)
 
     master_data = info_data["masters"][0]
-    if master_data["guides"]:
+    if master_data.get("guides"):
         guide_data = master_data["guides"][0]
         assert "pos" in guide_data, "Master guides should use 'pos' in file"
         assert (
@@ -608,7 +608,7 @@ def test_field_aliases_in_files(comprehensive_font, tmp_path):
         layers_data = json.load(f)
 
     layer_data = layers_data[0]
-    if layer_data["guides"]:
+    if layer_data.get("guides"):
         guide_data = layer_data["guides"][0]
         assert "pos" in guide_data, "Layer guides should use 'pos' in file"
         assert (
