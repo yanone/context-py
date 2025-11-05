@@ -16,13 +16,16 @@ class Node(BaseObject):
     _field_types = {
         "x": {
             "data_type": int,
+            "required": True,
         },
         "y": {
             "data_type": int,
+            "required": True,
         },
         "type": {
             "data_type": str,
             "allowed_values": ["o", "os", "c", "cs", "l", "ls", "q", "qs"],
+            "required": True,
         },
     }
 

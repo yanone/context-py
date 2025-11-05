@@ -65,6 +65,30 @@ class TestNodeValidation:
         with pytest.raises(ValueError, match="must be str"):
             node.type = 123
 
+    def test_x_rejects_none(self):
+        """x is a required field and should reject None."""
+        node = Node()
+        with pytest.raises(ValueError, match="required field and cannot be None"):
+            node.x = None
+
+    def test_y_rejects_none(self):
+        """y is a required field and should reject None."""
+        node = Node()
+        with pytest.raises(ValueError, match="required field and cannot be None"):
+            node.y = None
+
+    def test_type_rejects_none(self):
+        """type is a required field and should reject None."""
+        node = Node()
+        with pytest.raises(ValueError, match="required field and cannot be None"):
+            node.type = None
+
+    def test_type_rejects_empty_string(self):
+        """type is a required field and should reject empty string."""
+        node = Node()
+        with pytest.raises(ValueError, match="required field and cannot be empty"):
+            node.type = ""
+
 
 class TestGuideValidation:
     """Test Guide property validation."""

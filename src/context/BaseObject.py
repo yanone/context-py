@@ -439,6 +439,21 @@ class BaseObject:
         if validation_rules is not None:
             # Handle nested dict format with data_type and allowed_values
             if isinstance(validation_rules, dict):
+                # Check if field is required
+                is_required = validation_rules.get("required", False)
+                if is_required:
+                    if value is None:
+                        raise ValueError(
+                            f"{self.__class__.__name__}.{field_name} is a "
+                            f"required field and cannot be None"
+                        )
+                    # For string fields, also check for empty strings
+                    if validation_rules.get("data_type") == str and value == "":
+                        raise ValueError(
+                            f"{self.__class__.__name__}.{field_name} is a "
+                            f"required field and cannot be empty"
+                        )
+
                 data_type = validation_rules.get("data_type")
                 allowed_values = validation_rules.get("allowed_values")
 
