@@ -29,7 +29,7 @@ class BaseConvertor:
         return other.filename.endswith(cls.suffix)
 
     @classmethod
-    def load(cls, convertor, compile_only=False, filters=True):
+    def load(cls, convertor, compile_only=False, filters=True, _validate=True):
         from context.Font import Font
 
         self = cls()
@@ -38,6 +38,7 @@ class BaseConvertor:
         self.filename = convertor.filename
         self.scratch = convertor.scratch
         self.compile_only = compile_only
+        self._validate = _validate  # Store for use in _load
         loaded = self._load()
         if filters:
             for f in cls.LOAD_FILTERS:

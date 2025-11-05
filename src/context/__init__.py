@@ -54,8 +54,12 @@ __all__ = [
 ]
 
 
-def load(filename):
+def load(filename, _validate=True):
     """Load a Context format font file.
+
+    Args:
+        filename: Path to the font file
+        _validate: If False, skip required field validation for faster loading
 
     Note: This does NOT automatically initialize dirty tracking.
     Call font.initialize_dirty_tracking() explicitly after loading
@@ -65,6 +69,6 @@ def load(filename):
     from context.convertors import Convert
 
     convertor = Convert(filename)
-    font = Context.load(convertor)
+    font = Context.load(convertor, _validate=_validate)
 
     return font

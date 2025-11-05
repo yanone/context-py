@@ -296,7 +296,7 @@ class Master(BaseObject):
         return True
 
     @classmethod
-    def from_dict(cls, data, _copy=True):
+    def from_dict(cls, data, _copy=True, _validate=True):
         """Create Master from dictionary, handling guides and kerning."""
         from .Guide import Guide
 
@@ -319,9 +319,11 @@ class Master(BaseObject):
             data["name"] = I18NDictionary.with_default(data["name"])
 
         # Create master with simple fields
-        master = super(Master, cls).from_dict(data)
+        master = super(Master, cls).from_dict(data, _validate=_validate)
 
         # Restore guides (setter converts to dicts, parent set lazily)
-        master.guides = [Guide.from_dict(g, _copy=False) for g in guides_data]
+        master.guides = [
+            Guide.from_dict(g, _copy=False, _validate=_validate) for g in guides_data
+        ]
 
         return master

@@ -29,19 +29,19 @@ class Node(BaseObject):
         },
     }
 
-    def __init__(self, x=0, y=0, type="c", _data=None, **kwargs):
+    def __init__(self, x=0, y=0, type="c", _data=None, _validate=True, **kwargs):
         """Initialize Node with dict-backed storage."""
         if _data is not None:
             # from_dict path: use provided dict directly
-            super().__init__(_data=_data)
+            super().__init__(_data=_data, _validate=_validate)
         else:
             # Normal construction: build dict from parameters
             data = {"x": x, "y": y, "type": type}
             data.update(kwargs)
-            super().__init__(_data=data)
+            super().__init__(_data=data, _validate=_validate)
 
     @classmethod
-    def from_dict(cls, data, _copy=True):
+    def from_dict(cls, data, _copy=True, _validate=True):
         """
         Create Node from dict or list format.
 
@@ -50,6 +50,7 @@ class Node(BaseObject):
                   or a dict with x, y, type keys
             _copy: If True, copy data to prevent mutation. Set False when
                    loading from disk for performance.
+            _validate: If False, skip required field validation for performance.
 
         Returns:
             Node instance
@@ -57,14 +58,14 @@ class Node(BaseObject):
         if isinstance(data, list):
             # Handle list format: [x, y, type] or [x, y, type, userdata]
             if len(data) == 3:
-                return cls(data[0], data[1], data[2])
+                return cls(data[0], data[1], data[2], _validate=_validate)
             else:
                 # 4th element is format-specific data (dict or JSON)
                 x, y, node_type, formatspecific = data
-                return cls(x, y, node_type, _=formatspecific)
+                return cls(x, y, node_type, _=formatspecific, _validate=_validate)
         else:
             # Handle dict format - use parent's from_dict
-            return super(Node, cls).from_dict(data, _copy=_copy)
+            return super(Node, cls).from_dict(data, _copy=_copy, _validate=_validate)
 
     @property
     def x(self):
@@ -115,6 +116,7 @@ class Node(BaseObject):
 
     @property
     def is_smooth(self):
+        """Node is a smooth node."""
         return self.type.endswith("s")
 
     @property

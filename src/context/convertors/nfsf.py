@@ -68,12 +68,18 @@ class Context(BaseConvertor):
                 self.font.names.user_data = v
         self.font.names._set_parent(self.font)
 
-        self.font.axes = [Axis.from_dict(j, _copy=False) for j in info.get("axes", [])]
+        validate = getattr(self, "_validate", True)
+
+        self.font.axes = [
+            Axis.from_dict(j, _copy=False, _validate=validate)
+            for j in info.get("axes", [])
+        ]
         for axis in self.font.axes:
             axis._set_parent(self.font)
 
         instances = [
-            Instance.from_dict(j, _copy=False) for j in info.get("instances", [])
+            Instance.from_dict(j, _copy=False, _validate=validate)
+            for j in info.get("instances", [])
         ]
         self.font.instances = instances
         for instance in self.font.instances:
@@ -82,7 +88,7 @@ class Context(BaseConvertor):
         self._load_masters(info.get("masters", []))
 
         for g in glyphs:
-            glyph = Glyph.from_dict(g, _copy=False)
+            glyph = Glyph.from_dict(g, _copy=False, _validate=validate)
             glyph._set_parent(self.font)
             self.font.glyphs.append(glyph)
             for json_layer in self._load_file(glyph.babelfont_filename):
@@ -150,9 +156,10 @@ class Context(BaseConvertor):
                 self._mark_all_clean_for_file_saving(node)
 
     def _load_masters(self, masters):
+        validate = getattr(self, "_validate", True)
         for json_master in masters:
             # Master.from_dict handles kerning conversion now
-            master = Master.from_dict(json_master, _copy=False)
+            master = Master.from_dict(json_master, _copy=False, _validate=validate)
             master.font = self.font
             master._set_parent(self.font)
             # Guide conversion handled by Master.from_dict
@@ -166,7 +173,8 @@ class Context(BaseConvertor):
         # Extract components if present, they'll be added to shapes
         components = json_layer.pop("components", [])
 
-        layer = Layer.from_dict(json_layer, _copy=False)
+        validate = getattr(self, "_validate", True)
+        layer = Layer.from_dict(json_layer, _copy=False, _validate=validate)
         layer._font = self.font
 
         # Work directly with _data to avoid property overhead during loading
@@ -193,7 +201,8 @@ class Context(BaseConvertor):
             return s
 
         # Otherwise create Shape from dict
-        shape = Shape.from_dict(s, _copy=False)
+        validate = getattr(self, "_validate", True)
+        shape = Shape.from_dict(s, _copy=False, _validate=validate)
         shape._set_parent(layer)
 
         # Work directly with _data to avoid property overhead
@@ -212,7 +221,8 @@ class Context(BaseConvertor):
     def _inflate_node(self, n):
         # n can be [x, y, type] or [x, y, type, formatspecific]
         # Node.from_dict handles both list and dict formats
-        return Node.from_dict(n, _copy=False)
+        validate = getattr(self, "_validate", True)
+        return Node.from_dict(n, _copy=False, _validate=validate)
 
     def _load_metadata(self, info):
         for k in ["note", "upm", "version", "date", "customOpenTypeValues"]:

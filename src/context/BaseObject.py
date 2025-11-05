@@ -342,20 +342,43 @@ class BaseObject:
     # for fast loading. Call initialize_dirty_tracking() to enable.
     _tracking_enabled = False
 
-    def __init__(self, _data=None, **kwargs):
+    def __init__(self, _data=None, _validate=True, **kwargs):
         """
         Initialize with dict-backed storage.
 
         Args:
             _data: Dictionary containing all object data (primary storage)
+            _validate: If False, skip required field validation (for loading)
             **kwargs: Individual field values (will be stored in _data)
         """
         # Initialize _data dict - this is the ONLY data storage
         if _data is not None:
             object.__setattr__(self, "_data", _data)
+            data_to_validate = _data
         else:
             # Build _data from kwargs
             object.__setattr__(self, "_data", kwargs)
+            data_to_validate = kwargs
+
+        # Validate required fields if _field_types is defined and validation enabled
+        if _validate and hasattr(self.__class__, "_field_types"):
+            for field_name, field_info in self.__class__._field_types.items():
+                is_required = isinstance(field_info, dict) and field_info.get(
+                    "required", False
+                )
+                if is_required:
+                    value = data_to_validate.get(field_name)
+                    if value is None:
+                        raise ValueError(
+                            f"{self.__class__.__name__}.{field_name} is a "
+                            f"required field and cannot be None"
+                        )
+                    # For string fields, also check for empty strings
+                    if field_info.get("data_type") == str and value == "":
+                        raise ValueError(
+                            f"{self.__class__.__name__}.{field_name} is a "
+                            f"required field and cannot be empty"
+                        )
 
         # Initialize tracking infrastructure
         object.__setattr__(self, "_tracking_enabled", False)
@@ -1009,7 +1032,7 @@ class BaseObject:
         return dict(self._data)
 
     @classmethod
-    def from_dict(cls, data, _copy=True):
+    def from_dict(cls, data, _copy=True, _validate=True):
         """
         Create an instance from a dictionary representation.
         This is the inverse of to_dict().
@@ -1018,6 +1041,8 @@ class BaseObject:
             data: Dictionary with object data
             _copy: If True, deep copy the data to prevent mutation.
                    Set to False when loading from disk for performance.
+            _validate: If False, skip required field validation for performance.
+                      Set to False when loading from disk.
 
         Returns:
             Instance of the class
@@ -1032,6 +1057,6 @@ class BaseObject:
 
             data = copy.deepcopy(data)
 
-        instance = cls(_data=data)
+        instance = cls(_data=data, _validate=_validate)
 
         return instance

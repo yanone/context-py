@@ -216,7 +216,7 @@ class Axis(BaseObject):
         return piecewiseLinearMap(v, {v: k for k, v in self.map})
 
     @classmethod
-    def from_dict(cls, data, _copy=True):
+    def from_dict(cls, data, _copy=True, _validate=True):
         """Create Axis from dictionary, handling name field."""
         # Handle name field - convert to I18NDictionary if needed
         if "name" in data and isinstance(data["name"], dict):
@@ -227,7 +227,7 @@ class Axis(BaseObject):
             data["name"] = I18NDictionary.with_default(data["name"])
 
         # Create axis with fields
-        return super(Axis, cls).from_dict(data, _copy=_copy)
+        return super(Axis, cls).from_dict(data, _copy=_copy, _validate=_validate)
 
     # These are just better names
     def userspace_to_designspace(self, v: Number) -> Number:
