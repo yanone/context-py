@@ -974,7 +974,7 @@ class BaseObject:
             # Return primitive types as-is
             return v
 
-    def to_dict(self, use_cache=True):
+    def to_dict(self):
         """
         Return dictionary representation.
 

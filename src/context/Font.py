@@ -625,38 +625,33 @@ class Font(BaseObject):
         # Call parent write()
         super().write(stream, indent)
 
-    def to_dict(self, use_cache=True):
+    def to_dict(self):
         """
         Convert the entire font to a dictionary representation.
         This creates a complete babelfont-compatible dictionary including
         all glyphs and their layers, suitable for serialization to JSON
         and passing to Rust/WASM.
 
-        Args:
-            use_cache: If True, use cached dicts for clean objects
-
         Returns:
             dict: A complete dictionary representation of the font
         """
         # Start with base object dictionary (top-level font properties)
-        result = super().to_dict(use_cache=use_cache)
+        result = super().to_dict()
 
         # Add names dictionary
-        result["names"] = self.names.to_dict(use_cache=use_cache)
+        result["names"] = self.names.to_dict()
 
         # Add features
         if self.features:
-            result["features"] = self.features.to_dict(use_cache=use_cache)
+            result["features"] = self.features.to_dict()
 
         # Add glyphs with their layers
         glyphs_list = []
         for glyph in self.glyphs:
-            glyph_dict = glyph.to_dict(use_cache=use_cache)
+            glyph_dict = glyph.to_dict()
             # Add layers to each glyph
             if glyph.layers:
-                glyph_dict["layers"] = [
-                    layer.to_dict(use_cache=use_cache) for layer in glyph.layers
-                ]
+                glyph_dict["layers"] = [layer.to_dict() for layer in glyph.layers]
             glyphs_list.append(glyph_dict)
         result["glyphs"] = glyphs_list
 
