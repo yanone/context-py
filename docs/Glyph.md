@@ -2,83 +2,27 @@
 title: Glyph
 ---
 
-[Font](Font.md) | [Axis](Axis.md) | [Instance](Instance.md) | [Master](Master.md) | [Names](Names.md) | [Features](Features.md) | **Glyph** | [Layer](Layer.md) | [Guide](Guide.md) | [Shape](Shape.md) | [Anchor](Anchor.md)
+[Font](Font.md) | [Axis](Axis.md) | [Instance](Instance.md) | [Master](Master.md) | [Names](Names.md) | [Features](Features.md) | **Glyph** | [Layer](Layer.md) | [Guide](Guide.md) | [Shape](Shape.md) | [Anchor](Anchor.md) | [Node](Node.md)
 
 ---
 
-Glyph(name: str, production_name: Optional[str] = None, category: str = 'base', codepoints: List[int] = <factory>, layers: List[context.Layer.Layer] = <factory>, exported: bool = True, direction: str = 'LTR', user_data: dict = <factory>, _: dict = None)
+A glyph in a font.
+
 * When writing to Context-JSON, this class must be serialized without newlines
-## Glyph.name
 
-* Python type: `str`
+## Constructor
 
-* **Required field**
+`Glyph(name=None, production_name=None, category='base', codepoints=None, layers=None, exported=True, direction='LTR')`
 
+## Inherited Properties
 
+As a subclass of `BaseObject`, this class also has these properties:
 
-
-## Glyph.production_name
-
-* Python type: `Optional[str]`
-
-
-*If not provided, defaults to* `None`.
-
-
-## Glyph.category
-
-* Python type: `str`
-
-
-*If not provided, defaults to* `base`.
-
-
-## Glyph.codepoints
-
-* Python type: `[int]`
-
-
-
-
-## Glyph.layers
-
-* Python type: [[`Layer`](Layer.md)]
-
-
-
-
-## Glyph.exported
-
-* Python type: `bool`
-
-
-*If not provided, defaults to* `True`.
-
-
-## Glyph.direction
-
-* Python type: `str`
-
-
-*If not provided, defaults to* `LTR`.
-
-
-## Glyph.user_data
+### user_data
 
 * Python type: `dict`
 
+Optional dictionary for format-specific data. This is stored as `_` in the Context-JSON serialization. Use this to store custom metadata that should be preserved when reading and writing files.
 
-Each object in Context has an optional attached dictionary to allow the storage
-of format-specific information. Font creation software may store any additional
-information that they wish to have preserved on import and export under a
-namespaced (reverse-domain) key in this dictionary. For example, information
-specific to the Glyphs software should be stored under the key `com.glyphsapp`.
-The value stored under this key may be any data serializable in JSON; typically
-it will be a `dict`.
-
-Note that there is an important distinction between the Python object format
-of this field and the Context-JSON representation. When stored to JSON, this key
-is exported not as `user_data` but as a simple underscore (`_`).
-
-
+*If not provided, defaults to* `{}`.
 

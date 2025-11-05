@@ -4,12 +4,12 @@ from .BaseObject import BaseObject
 TO_PEN_TYPE = {"o": None, "c": "curve", "l": "line", "q": "qcurve"}
 FROM_PEN_TYPE = {v: k for k, v in TO_PEN_TYPE.items()}
 
+# Checked status: OK Yanone November 5th 2025
+
 
 class Node(BaseObject):
     """
     A node in a glyph outline path.
-
-    Data is stored in self._data dict. Properties provide access to fields.
     """
 
     # Define validation rules for each field

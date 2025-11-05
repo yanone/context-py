@@ -2,61 +2,27 @@
 title: Instance
 ---
 
-[Font](Font.md) | [Axis](Axis.md) | **Instance** | [Master](Master.md) | [Names](Names.md) | [Features](Features.md) | [Glyph](Glyph.md) | [Layer](Layer.md) | [Guide](Guide.md) | [Shape](Shape.md) | [Anchor](Anchor.md)
+[Font](Font.md) | [Axis](Axis.md) | **Instance** | [Master](Master.md) | [Names](Names.md) | [Features](Features.md) | [Glyph](Glyph.md) | [Layer](Layer.md) | [Guide](Guide.md) | [Shape](Shape.md) | [Anchor](Anchor.md) | [Node](Node.md)
 
 ---
 
 An object representing a named or static instance.
+
 * When writing to Context-JSON, this class must be serialized without newlines
-## Instance.name
 
-* Python type: `I18NDictionary`
+## Constructor
 
-* **Required field**
+`Instance(name=None, location=None, variable=False, customNames=None)`
 
-The name of this instance. *Localizable.*
+## Inherited Properties
 
+As a subclass of `BaseObject`, this class also has these properties:
 
-## Instance.location
-
-* Python type: `dict`
-
-* **Required field**
-
-A dictionary mapping axis tags to coordinates in order to locate this instance in the design space.
-
-
-## Instance.variable
-
-* Python type: `bool`
-
-A boolean indicating whether this instance is variable or static.
-*If not provided, defaults to* `False`.
-
-
-## Instance.customNames
-
-* Python type: [`Names`](Names.md)
-
-A dictionary of custom names for this instance.
-
-
-## Instance.user_data
+### user_data
 
 * Python type: `dict`
 
+Optional dictionary for format-specific data. This is stored as `_` in the Context-JSON serialization. Use this to store custom metadata that should be preserved when reading and writing files.
 
-Each object in Context has an optional attached dictionary to allow the storage
-of format-specific information. Font creation software may store any additional
-information that they wish to have preserved on import and export under a
-namespaced (reverse-domain) key in this dictionary. For example, information
-specific to the Glyphs software should be stored under the key `com.glyphsapp`.
-The value stored under this key may be any data serializable in JSON; typically
-it will be a `dict`.
-
-Note that there is an important distinction between the Python object format
-of this field and the Context-JSON representation. When stored to JSON, this key
-is exported not as `user_data` but as a simple underscore (`_`).
-
-
+*If not provided, defaults to* `{}`.
 

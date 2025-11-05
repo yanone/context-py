@@ -2,19 +2,15 @@
 title: Guide
 ---
 
-[Font](Font.md) | [Axis](Axis.md) | [Instance](Instance.md) | [Master](Master.md) | [Names](Names.md) | [Features](Features.md) | [Glyph](Glyph.md) | [Layer](Layer.md) | **Guide** | [Shape](Shape.md) | [Anchor](Anchor.md)
+[Font](Font.md) | [Axis](Axis.md) | [Instance](Instance.md) | [Master](Master.md) | [Names](Names.md) | [Features](Features.md) | [Glyph](Glyph.md) | [Layer](Layer.md) | **Guide** | [Shape](Shape.md) | [Anchor](Anchor.md) | [Node](Node.md)
 
 ---
 
-Guide(position: context.BaseObject.Position, name: str = None, color: context.BaseObject.Color = None, user_data: dict = <factory>, _: dict = None)
-## Guide.position
+A guide line in a glyph or master.
 
-* Python type: `Position`
+## Constructor
 
-* **Required field**
-
-
-
+`Guide(position=None, name=None, color=None)`
 
 ## Guide.name
 
@@ -24,30 +20,31 @@ Guide(position: context.BaseObject.Position, name: str = None, color: context.Ba
 *If not provided, defaults to* `None`.
 
 
-## Guide.color
+## Guide.position
 
-* Python type: `Color`
+* Python type: `(dict, Position, list, tuple)`
 
 
 *If not provided, defaults to* `None`.
 
 
-## Guide.user_data
+## Guide.color
+
+* Python type: `(dict, Color, list, tuple)`
+
+
+*If not provided, defaults to* `None`.
+
+
+## Inherited Properties
+
+As a subclass of `BaseObject`, this class also has these properties:
+
+### user_data
 
 * Python type: `dict`
 
+Optional dictionary for format-specific data. This is stored as `_` in the Context-JSON serialization. Use this to store custom metadata that should be preserved when reading and writing files.
 
-Each object in Context has an optional attached dictionary to allow the storage
-of format-specific information. Font creation software may store any additional
-information that they wish to have preserved on import and export under a
-namespaced (reverse-domain) key in this dictionary. For example, information
-specific to the Glyphs software should be stored under the key `com.glyphsapp`.
-The value stored under this key may be any data serializable in JSON; typically
-it will be a `dict`.
-
-Note that there is an important distinction between the Python object format
-of this field and the Context-JSON representation. When stored to JSON, this key
-is exported not as `user_data` but as a simple underscore (`_`).
-
-
+*If not provided, defaults to* `{}`.
 

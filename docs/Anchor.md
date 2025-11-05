@@ -2,18 +2,22 @@
 title: Anchor
 ---
 
-[Font](Font.md) | [Axis](Axis.md) | [Instance](Instance.md) | [Master](Master.md) | [Names](Names.md) | [Features](Features.md) | [Glyph](Glyph.md) | [Layer](Layer.md) | [Guide](Guide.md) | [Shape](Shape.md) | **Anchor**
+[Font](Font.md) | [Axis](Axis.md) | [Instance](Instance.md) | [Master](Master.md) | [Names](Names.md) | [Features](Features.md) | [Glyph](Glyph.md) | [Layer](Layer.md) | [Guide](Guide.md) | [Shape](Shape.md) | **Anchor** | [Node](Node.md)
 
 ---
 
-Anchor(name: str, x: int = 0, y: int = 0, user_data: dict = <factory>, _: dict = None)
+An anchor point in a glyph.
+
+## Constructor
+
+`Anchor(name=None, x=0, y=0)`
+
 ## Anchor.name
 
 * Python type: `str`
 
-* **Required field**
 
-
+*If not provided, defaults to* `None`.
 
 
 ## Anchor.x
@@ -21,7 +25,7 @@ Anchor(name: str, x: int = 0, y: int = 0, user_data: dict = <factory>, _: dict =
 * Python type: `int`
 
 
-*If not provided, defaults to* `0`.
+*If not provided, defaults to* `None`.
 
 
 ## Anchor.y
@@ -29,25 +33,18 @@ Anchor(name: str, x: int = 0, y: int = 0, user_data: dict = <factory>, _: dict =
 * Python type: `int`
 
 
-*If not provided, defaults to* `0`.
+*If not provided, defaults to* `None`.
 
 
-## Anchor.user_data
+## Inherited Properties
+
+As a subclass of `BaseObject`, this class also has these properties:
+
+### user_data
 
 * Python type: `dict`
 
+Optional dictionary for format-specific data. This is stored as `_` in the Context-JSON serialization. Use this to store custom metadata that should be preserved when reading and writing files.
 
-Each object in Context has an optional attached dictionary to allow the storage
-of format-specific information. Font creation software may store any additional
-information that they wish to have preserved on import and export under a
-namespaced (reverse-domain) key in this dictionary. For example, information
-specific to the Glyphs software should be stored under the key `com.glyphsapp`.
-The value stored under this key may be any data serializable in JSON; typically
-it will be a `dict`.
-
-Note that there is an important distinction between the Python object format
-of this field and the Context-JSON representation. When stored to JSON, this key
-is exported not as `user_data` but as a simple underscore (`_`).
-
-
+*If not provided, defaults to* `{}`.
 

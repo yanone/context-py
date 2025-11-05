@@ -2,17 +2,22 @@
 title: Layer
 ---
 
-[Font](Font.md) | [Axis](Axis.md) | [Instance](Instance.md) | [Master](Master.md) | [Names](Names.md) | [Features](Features.md) | [Glyph](Glyph.md) | **Layer** | [Guide](Guide.md) | [Shape](Shape.md) | [Anchor](Anchor.md)
+[Font](Font.md) | [Axis](Axis.md) | [Instance](Instance.md) | [Master](Master.md) | [Names](Names.md) | [Features](Features.md) | [Glyph](Glyph.md) | **Layer** | [Guide](Guide.md) | [Shape](Shape.md) | [Anchor](Anchor.md) | [Node](Node.md)
 
 ---
 
-Layer(width: int = 0, height: int = 0, vertWidth: Optional[int] = None, name: str = None, _master: str = None, id: str = <factory>, guides: List[context.Guide.Guide] = <factory>, shapes: List[context.Shape.Shape] = <factory>, anchors: List[context.Anchor.Anchor] = <factory>, color: context.BaseObject.Color = None, layerIndex: int = 0, background: Optional[str] = None, isBackground: bool = False, location: List[float] = None, user_data: dict = <factory>, _: dict = None)
+A layer in a glyph with shapes, anchors, and guides.
+
+## Constructor
+
+`Layer(width=0, height=0, vertWidth=None, name=None, _master=None, id=None, guides=None, shapes=None, anchors=None, color=None, layerIndex=0, background=None, isBackground=False, location=None)`
+
 ## Layer.width
 
 * Python type: `int`
 
 
-*If not provided, defaults to* `0`.
+*If not provided, defaults to* `None`.
 
 
 ## Layer.height
@@ -20,12 +25,12 @@ Layer(width: int = 0, height: int = 0, vertWidth: Optional[int] = None, name: st
 * Python type: `int`
 
 
-*If not provided, defaults to* `0`.
+*If not provided, defaults to* `None`.
 
 
 ## Layer.vertWidth
 
-* Python type: `Optional[int]`
+* Python type: `int`
 
 
 *If not provided, defaults to* `None`.
@@ -39,100 +44,15 @@ Layer(width: int = 0, height: int = 0, vertWidth: Optional[int] = None, name: st
 *If not provided, defaults to* `None`.
 
 
-## Layer._master
+## Inherited Properties
 
-* Python type: `str`
+As a subclass of `BaseObject`, this class also has these properties:
 
-
-*If not provided, defaults to* `None`.
-
-
-## Layer.id
-
-* Python type: `str`
-
-
-
-
-## Layer.guides
-
-* Python type: [[`Guide`](Guide.md)]
-
-
-
-
-## Layer.shapes
-
-* Python type: [[`Shape`](Shape.md)]
-
-* When writing to Context-JSON, each item in the list must be placed on a separate line.
-
-
-
-
-## Layer.anchors
-
-* Python type: [[`Anchor`](Anchor.md)]
-
-
-
-
-## Layer.color
-
-* Python type: `Color`
-
-
-*If not provided, defaults to* `None`.
-
-
-## Layer.layerIndex
-
-* Python type: `int`
-
-
-*If not provided, defaults to* `0`.
-
-
-## Layer.background
-
-* Python type: `Optional[str]`
-
-
-*If not provided, defaults to* `None`.
-
-
-## Layer.isBackground
-
-* Python type: `bool`
-
-
-*If not provided, defaults to* `False`.
-
-
-## Layer.location
-
-* Python type: `[float]`
-
-
-*If not provided, defaults to* `None`.
-
-
-## Layer.user_data
+### user_data
 
 * Python type: `dict`
 
+Optional dictionary for format-specific data. This is stored as `_` in the Context-JSON serialization. Use this to store custom metadata that should be preserved when reading and writing files.
 
-Each object in Context has an optional attached dictionary to allow the storage
-of format-specific information. Font creation software may store any additional
-information that they wish to have preserved on import and export under a
-namespaced (reverse-domain) key in this dictionary. For example, information
-specific to the Glyphs software should be stored under the key `com.glyphsapp`.
-The value stored under this key may be any data serializable in JSON; typically
-it will be a `dict`.
-
-Note that there is an important distinction between the Python object format
-of this field and the Context-JSON representation. When stored to JSON, this key
-is exported not as `user_data` but as a simple underscore (`_`).
-
-
+*If not provided, defaults to* `{}`.
 

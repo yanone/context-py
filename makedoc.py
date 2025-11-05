@@ -1,6 +1,7 @@
 import dataclasses
 import re
 import typing
+import inspect
 
 from graphviz import Digraph
 
@@ -25,7 +26,11 @@ DOC_CLASSES = [
     "Guide",
     "Shape",
     "Anchor",
+    "Node",
 ]
+
+# Properties to ignore in documentation
+IGNORE_PROPERTIES = ["_"]
 
 
 def generate_navigation(current_class):
@@ -52,6 +57,7 @@ def maybelink(t):
             "Shape",
             "Anchor",
             "Guide",
+            "Node",
             "Features",
         ]:
             return "[`%s`](%s.md)" % (t, t)
@@ -67,6 +73,7 @@ def maybelink(t):
             "Shape",
             "Anchor",
             "Guide",
+            "Node",
             "Features",
         ]:
             return "[`%s`](%s.md)" % (arg, arg)
@@ -86,7 +93,11 @@ def maybelink(t):
 
 
 def describe_dataclass(cls):
-    if not dataclasses.is_dataclass(cls):
+    # Support both dataclass and BaseObject classes
+    is_dataclass = dataclasses.is_dataclass(cls)
+    is_baseobject = hasattr(cls, "_field_types") and isinstance(cls._field_types, dict)
+
+    if not is_dataclass and not is_baseobject:
         return
 
     name = cls.__name__
@@ -102,13 +113,67 @@ def describe_dataclass(cls):
 
     # Write class description
     f.write(cls.__doc__)
-    f.write("\n")
-    if cls._write_one_line:
+    f.write("\n\n")
+    if hasattr(cls, "_write_one_line") and cls._write_one_line:
         f.write(
-            "* When writing to Context-JSON, this class must be serialized without newlines\n"
+            "* When writing to Context-JSON, this class must be serialized without newlines\n\n"
         )
-    for k in dataclasses.fields(cls):
-        if k.name == "_":
+
+    # Get fields from either dataclass or BaseObject
+    if is_dataclass:
+        fields_iter = dataclasses.fields(cls)
+    else:
+        # For BaseObject classes, write constructor signature
+        from collections import namedtuple
+
+        Field = namedtuple(
+            "Field", ["name", "type", "default", "default_factory", "metadata"]
+        )
+        fields_iter = []
+
+        # Generate constructor signature
+        if hasattr(cls, "__init__"):
+            import inspect
+
+            sig = inspect.signature(cls.__init__)
+            params = []
+            for param_name, param in sig.parameters.items():
+                if param_name in ("self", "_data", "kwargs"):
+                    continue
+                if param.default == inspect.Parameter.empty:
+                    params.append(param_name)
+                else:
+                    default_repr = (
+                        repr(param.default)
+                        if param.default != inspect.Parameter.empty
+                        else None
+                    )
+                    if default_repr:
+                        params.append(f"{param_name}={default_repr}")
+                    else:
+                        params.append(param_name)
+
+            if params:
+                f.write(f"## Constructor\n\n")
+                f.write(f"`{name}({', '.join(params)})`\n\n")
+
+        for field_name, field_info in cls._field_types.items():
+            field_type = field_info.get("data_type", str)
+            is_required = field_info.get("required", False)
+            default_value = dataclasses.MISSING if is_required else None
+            fields_iter.append(
+                Field(
+                    name=field_name,
+                    type=field_type,
+                    default=default_value,
+                    default_factory=dataclasses.MISSING,
+                    metadata={},
+                )
+            )
+
+    for k in fields_iter:
+        # Skip properties in ignore list
+        if k.name in IGNORE_PROPERTIES:
             continue
         if isinstance(k.type, list):
             stringytype = "[%s]" % ", ".join([maybelink(t) for t in k.type])
@@ -142,6 +207,13 @@ def describe_dataclass(cls):
                 "* This field only exists as an attribute of the the Python object and should not be written to Context-JSON.\n\n"
             )
 
+        # Try to get docstring from property getter
+        if is_baseobject and hasattr(cls, k.name):
+            prop = getattr(cls, k.name)
+            if isinstance(prop, property) and prop.fget and prop.fget.__doc__:
+                docstring = prop.fget.__doc__.strip()
+                f.write(f"{docstring}\n\n")
+
         if "description" in k.metadata:
             f.write(k.metadata["description"])
         if k.type == I18NDictionary:
@@ -150,6 +222,24 @@ def describe_dataclass(cls):
         if k.default is not dataclasses.MISSING:
             f.write("*If not provided, defaults to* `%s`.\n" % str(k.default))
         f.write("\n\n")
+
+    # Add inherited properties for BaseObject classes
+    if is_baseobject:
+        f.write("## Inherited Properties\n\n")
+        f.write(
+            "As a subclass of `BaseObject`, this class also has "
+            "these properties:\n\n"
+        )
+        f.write("### user_data\n\n")
+        f.write(
+            "* Python type: `dict`\n\n"
+            "Optional dictionary for format-specific data. "
+            "This is stored as `_` in the Context-JSON serialization. "
+            "Use this to store custom metadata that should be preserved "
+            "when reading and writing files.\n\n"
+        )
+        f.write("*If not provided, defaults to* `{}`.\n\n")
+
     f.close()
 
 
@@ -164,6 +254,7 @@ describe_dataclass(Layer)
 describe_dataclass(Guide)
 describe_dataclass(Shape)
 describe_dataclass(Anchor)
+describe_dataclass(Node)
 
 
 dot = Digraph(comment="Context Format", format="svg")
