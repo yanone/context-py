@@ -172,7 +172,7 @@ class Master(BaseObject):
     def guides(self, value):
         """Store as dicts in _data and invalidate cache."""
         if value:
-            # Convert Guide objects to dicts
+            # Convert Guide objects to dicts (serialize for to_dict())
             dict_guides = [g.to_dict() if hasattr(g, "to_dict") else g for g in value]
             self._data["guides"] = dict_guides
         else:
@@ -194,11 +194,40 @@ class Master(BaseObject):
 
     @property
     def kerning(self):
-        return self._data.get("kerning", {})
+        """
+        Return kerning with tuple keys for API access.
+        _data stores string keys for JSON serialization.
+        Creates a new dict each time to avoid modifying _data.
+        """
+        kerning_data = self._data.get("kerning", {})
+        if not kerning_data:
+            return {}
+        
+        # Convert string keys to tuples for user access (DON'T modify _data)
+        kerning = {}
+        for k, v in kerning_data.items():
+            if isinstance(k, tuple):
+                # Already a tuple (shouldn't happen, but be safe)
+                kerning[k] = v
+            else:
+                # Convert from string format "a//b" to tuple ("a", "b")
+                kerning[tuple(k.split("//"))] = v
+        return kerning
 
     @kerning.setter
     def kerning(self, value):
-        self._data["kerning"] = value
+        # Convert kerning tuple keys to string format for JSON serialization
+        if value:
+            kerning = {}
+            for k, v in value.items():
+                # Convert tuple ("a", "b") to string "a//b"
+                if isinstance(k, tuple):
+                    kerning["//".join(k)] = v
+                else:
+                    kerning[k] = v
+            self._data["kerning"] = kerning
+        else:
+            self._data["kerning"] = value
         if self._tracking_enabled:
             self.mark_dirty()
 
@@ -266,32 +295,6 @@ class Master(BaseObject):
             return False
         return True
 
-    def to_dict(self, use_cache=True):
-        """
-        Convert master to dictionary, serializing kerning tuple keys.
-        """
-        result = super().to_dict(use_cache=use_cache)
-
-        # Convert kerning tuple keys to string format for JSON serialization
-        if "kerning" in result and result["kerning"]:
-            kerning = {}
-            for k, v in result["kerning"].items():
-                # Convert tuple ("a", "b") to string "a//b"
-                if isinstance(k, tuple):
-                    kerning["//".join(k)] = v
-                else:
-                    kerning[k] = v
-            result["kerning"] = kerning
-
-        # Serialize guides
-        if "guides" in result and result["guides"]:
-            result["guides"] = [
-                g.to_dict(use_cache=use_cache) if hasattr(g, "to_dict") else g
-                for g in result["guides"]
-            ]
-
-        return result
-
     @classmethod
     def from_dict(cls, data, _copy=True):
         """Create Master from dictionary, handling guides and kerning."""
@@ -304,18 +307,9 @@ class Master(BaseObject):
         # Extract guides if present
         guides_data = data.pop("guides", [])
 
-        # Handle kerning keys (convert from "a//b" to ("a", "b"))
-        if "kerning" in data:
-            kerning = {}
-            for k, v in data["kerning"].items():
-                # Check if key is already a tuple (from in-memory data)
-                if isinstance(k, tuple):
-                    kerning[k] = v
-                else:
-                    # Convert from string format "a//b" to tuple ("a", "b")
-                    kerning[tuple(k.split("//"))] = v
-            data["kerning"] = kerning
-
+        # Kerning keys should already be in string format "a//b" for serialization
+        # The kerning getter will convert them to tuples for API access
+        
         # Handle name field - convert to I18NDictionary if needed
         if "name" in data and isinstance(data["name"], dict):
             name_dict = I18NDictionary()
