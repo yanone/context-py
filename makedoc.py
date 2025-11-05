@@ -192,6 +192,15 @@ def describe_dataclass(cls):
             and k.default_factory is dataclasses.MISSING
         ):
             f.write("* **Required field**\n\n")
+        
+        # Add allowed_values information for BaseObject classes
+        if is_baseobject and k.name in cls._field_types:
+            field_info = cls._field_types[k.name]
+            if "allowed_values" in field_info:
+                allowed = field_info["allowed_values"]
+                allowed_str = ", ".join([f"`{v}`" for v in allowed])
+                f.write(f"* Allowed values: {allowed_str}\n\n")
+        
         if "json_location" in k.metadata:
             f.write(
                 "* When writing to Context-JSON, this structure is stored under the separate file `%s`.\n\n"

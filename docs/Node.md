@@ -42,6 +42,8 @@ The y coordinate of the node.
 
 * **Required field**
 
+* Allowed values: `o`, `os`, `c`, `cs`, `l`, `ls`, `q`, `qs`
+
 The node type (c/l/q/o with optional 's' suffix for smooth).
 
 

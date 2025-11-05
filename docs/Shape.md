@@ -34,6 +34,8 @@ A shape in a glyph layer - either a path or component reference.
 
 * Python type: `int`
 
+* Allowed values: `-1`, `1`
+
 
 *If not provided, defaults to* `None`.
 
