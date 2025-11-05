@@ -202,7 +202,7 @@ class Master(BaseObject):
         kerning_data = self._data.get("kerning", {})
         if not kerning_data:
             return {}
-        
+
         # Convert string keys to tuples for user access (DON'T modify _data)
         kerning = {}
         for k, v in kerning_data.items():
@@ -309,7 +309,7 @@ class Master(BaseObject):
 
         # Kerning keys should already be in string format "a//b" for serialization
         # The kerning getter will convert them to tuples for API access
-        
+
         # Handle name field - convert to I18NDictionary if needed
         if "name" in data and isinstance(data["name"], dict):
             name_dict = I18NDictionary()
