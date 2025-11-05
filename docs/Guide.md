@@ -12,7 +12,7 @@ A guide line in a glyph or master.
 
 `Guide(position=None, name=None, color=None)`
 
-## Guide.name
+### Guide.name
 
 * Python type: `str`
 
@@ -20,7 +20,7 @@ A guide line in a glyph or master.
 *If not provided, defaults to* `None`.
 
 
-## Guide.position
+### Guide.position
 
 * Python type: `(dict, Position, list, tuple)`
 
@@ -28,7 +28,7 @@ A guide line in a glyph or master.
 *If not provided, defaults to* `None`.
 
 
-## Guide.color
+### Guide.color
 
 * Python type: `(dict, Color, list, tuple)`
 

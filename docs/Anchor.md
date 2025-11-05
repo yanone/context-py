@@ -12,7 +12,7 @@ An anchor point in a glyph.
 
 `Anchor(name=None, x=0, y=0)`
 
-## Anchor.name
+### Anchor.name
 
 * Python type: `str`
 
@@ -20,7 +20,7 @@ An anchor point in a glyph.
 *If not provided, defaults to* `None`.
 
 
-## Anchor.x
+### Anchor.x
 
 * Python type: `int`
 
@@ -28,7 +28,7 @@ An anchor point in a glyph.
 *If not provided, defaults to* `None`.
 
 
-## Anchor.y
+### Anchor.y
 
 * Python type: `int`
 

@@ -14,7 +14,7 @@ A shape in a glyph layer - either a path or component reference.
 
 `Shape(ref=None, transform=None, nodes=None, closed=True, direction=1)`
 
-## Shape.ref
+### Shape.ref
 
 * Python type: `str`
 
@@ -22,7 +22,7 @@ A shape in a glyph layer - either a path or component reference.
 *If not provided, defaults to* `None`.
 
 
-## Shape.closed
+### Shape.closed
 
 * Python type: `bool`
 
@@ -30,7 +30,7 @@ A shape in a glyph layer - either a path or component reference.
 *If not provided, defaults to* `None`.
 
 
-## Shape.direction
+### Shape.direction
 
 * Python type: `int`
 

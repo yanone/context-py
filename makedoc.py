@@ -138,7 +138,7 @@ def describe_dataclass(cls):
             sig = inspect.signature(cls.__init__)
             params = []
             for param_name, param in sig.parameters.items():
-                if param_name in ("self", "_data", "kwargs"):
+                if param_name in ("self", "_data", "_validate", "kwargs"):
                     continue
                 if param.default == inspect.Parameter.empty:
                     params.append(param_name)
@@ -183,7 +183,7 @@ def describe_dataclass(cls):
             stringytype = maybelink(k.type)
         if not "`" in stringytype:
             stringytype = "`%s`" % stringytype
-        f.write("## %s.%s\n\n" % (name, k.name))
+        f.write("### %s.%s\n\n" % (name, k.name))
         f.write("* Python type: %s\n\n" % stringytype)
         if "json_type" in k.metadata:
             f.write("* Context-JSON type: `%s`\n\n" % k.metadata["json_type"])

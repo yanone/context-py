@@ -12,9 +12,9 @@ title: Node
 
 ## Constructor
 
-`Node(x=0, y=0, type='c', _validate=True)`
+`Node(x=0, y=0, type='c')`
 
-## Node.x
+### Node.x
 
 * Python type: `int`
 
@@ -25,7 +25,7 @@ The x coordinate of the node.
 
 
 
-## Node.y
+### Node.y
 
 * Python type: `int`
 
@@ -36,7 +36,7 @@ The y coordinate of the node.
 
 
 
-## Node.type
+### Node.type
 
 * Python type: `str`
 
