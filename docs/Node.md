@@ -16,35 +16,35 @@ title: Node
 
 ### Node.x
 
+The x coordinate of the node.
+
 * Python type: `int`
 
 * **Required field**
-
-The x coordinate of the node.
 
 
 
 
 ### Node.y
 
+The y coordinate of the node.
+
 * Python type: `int`
 
 * **Required field**
-
-The y coordinate of the node.
 
 
 
 
 ### Node.type
 
+The node type (c/l/q/o with optional 's' suffix for smooth).
+
 * Python type: `str`
 
 * **Required field**
 
 * Allowed values: `o`, `os`, `c`, `cs`, `l`, `ls`, `q`, `qs`
-
-The node type (c/l/q/o with optional 's' suffix for smooth).
 
 
 

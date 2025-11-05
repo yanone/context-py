@@ -184,6 +184,16 @@ def describe_dataclass(cls):
         if not "`" in stringytype:
             stringytype = "`%s`" % stringytype
         f.write("### %s.%s\n\n" % (name, k.name))
+
+        # Try to get docstring from property getter
+        if is_baseobject and hasattr(cls, k.name):
+            prop = getattr(cls, k.name)
+            if isinstance(prop, property) and prop.fget and prop.fget.__doc__:
+                docstring = prop.fget.__doc__.strip()
+                f.write(f"{docstring}\n\n")
+        if "description" in k.metadata:
+            f.write(k.metadata["description"])
+
         f.write("* Python type: %s\n\n" % stringytype)
         if "json_type" in k.metadata:
             f.write("* Context-JSON type: `%s`\n\n" % k.metadata["json_type"])
@@ -192,7 +202,7 @@ def describe_dataclass(cls):
             and k.default_factory is dataclasses.MISSING
         ):
             f.write("* **Required field**\n\n")
-        
+
         # Add allowed_values information for BaseObject classes
         if is_baseobject and k.name in cls._field_types:
             field_info = cls._field_types[k.name]
@@ -200,7 +210,7 @@ def describe_dataclass(cls):
                 allowed = field_info["allowed_values"]
                 allowed_str = ", ".join([f"`{v}`" for v in allowed])
                 f.write(f"* Allowed values: {allowed_str}\n\n")
-        
+
         if "json_location" in k.metadata:
             f.write(
                 "* When writing to Context-JSON, this structure is stored under the separate file `%s`.\n\n"
@@ -216,15 +226,6 @@ def describe_dataclass(cls):
                 "* This field only exists as an attribute of the the Python object and should not be written to Context-JSON.\n\n"
             )
 
-        # Try to get docstring from property getter
-        if is_baseobject and hasattr(cls, k.name):
-            prop = getattr(cls, k.name)
-            if isinstance(prop, property) and prop.fget and prop.fget.__doc__:
-                docstring = prop.fget.__doc__.strip()
-                f.write(f"{docstring}\n\n")
-
-        if "description" in k.metadata:
-            f.write(k.metadata["description"])
         if k.type == I18NDictionary:
             f.write(" *Localizable.*")
         f.write("\n")
