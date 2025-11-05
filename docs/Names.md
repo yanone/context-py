@@ -18,5 +18,7 @@ As a subclass of `BaseObject`, this class also has these properties:
 
 Optional dictionary for format-specific data. This is stored as `_` in the Context-JSON serialization. Use this to store custom metadata that should be preserved when reading and writing files.
 
+Use keys such as `com.example.myCustomData` to avoid conflicts.
+
 *If not provided, defaults to* `{}`.
 

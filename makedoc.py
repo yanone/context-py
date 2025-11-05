@@ -247,6 +247,7 @@ def describe_dataclass(cls):
             "This is stored as `_` in the Context-JSON serialization. "
             "Use this to store custom metadata that should be preserved "
             "when reading and writing files.\n\n"
+            "Use keys such as `com.example.myCustomData` to avoid conflicts.\n\n"
         )
         f.write("*If not provided, defaults to* `{}`.\n\n")
 
