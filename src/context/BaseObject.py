@@ -987,7 +987,8 @@ class BaseObject:
 
         # CRITICAL INSTRUCTION:
         # With dict-backed storage, _data already contains serializable data.
-        # Never overwrite this method to build dicts from properties
+        # Never override this method to build dicts on-the-fly from properties,
+        # but instead implement property getters/setters that convert to/from dicts.
         # We need to_dict() to be instant for performance.
 
         return dict(self._data)
