@@ -653,6 +653,7 @@ class Font(BaseObject):
             if glyph.layers:
                 glyph_dict["layers"] = [layer.to_dict() for layer in glyph.layers]
             glyphs_list.append(glyph_dict)
+
         result["glyphs"] = glyphs_list
 
         return result

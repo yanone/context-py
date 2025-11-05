@@ -25,6 +25,7 @@ from context.ai_docs import (
     generate_minimal_docs,
 )
 
+
 __all__ = [
     "Font",
     "Axis",
