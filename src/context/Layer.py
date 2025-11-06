@@ -215,17 +215,23 @@ class Layer(BaseObject):
         from .BaseObject import TrackedList
 
         # Return cached list if it exists
-        if self._shapes_cache is not None:
-            return self._shapes_cache
+        # Use object.__getattribute__ to bypass tracked_getattribute
+        shapes_cache = object.__getattribute__(self, "_shapes_cache")
+        if shapes_cache is not None:
+            return shapes_cache
 
-        shapes_data = self._data.get("shapes", [])
+        _data = object.__getattribute__(self, "_data")
+        shapes_data = _data.get("shapes", [])
 
         # Convert dicts to Shape objects (no deepcopy needed for _data)
         shapes_objects = [Shape.from_dict(s, _copy=False) for s in shapes_data]
         for shape in shapes_objects:
             shape._set_parent(self)
             # Enable tracking if parent has it enabled
-            if self._tracking_enabled:
+            tracking_enabled = object.__getattribute__(
+                self, "_tracking_enabled"
+            )
+            if tracking_enabled:
                 object.__setattr__(shape, "_tracking_enabled", True)
 
         # Create TrackedList and cache it

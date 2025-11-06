@@ -522,7 +522,7 @@ class BaseObject:
         # Set the value and mark dirty with field name for tracking
         _data = object.__getattribute__(self, "_data")
         _data[storage_name] = value
-        
+
         tracking_enabled = object.__getattribute__(self, "_tracking_enabled")
         if tracking_enabled:
             # Propagate to immediate parent only (mark_dirty limits cascade)

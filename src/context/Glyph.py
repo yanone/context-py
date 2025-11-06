@@ -95,22 +95,32 @@ class Glyph(BaseObject):
         from .BaseObject import TrackedList
 
         # Return cached list if it exists
-        if self._layers_cache is not None:
+        # Use object.__getattribute__ to bypass tracked_getattribute
+        layers_cache = object.__getattribute__(self, "_layers_cache")
+        if layers_cache is not None:
             # Check if cached objects need tracking enabled
-            if self._tracking_enabled:
-                for layer in self._layers_cache:
-                    if not layer._tracking_enabled:
+            tracking_enabled = object.__getattribute__(
+                self, "_tracking_enabled"
+            )
+            if tracking_enabled:
+                for layer in layers_cache:
+                    layer_tracking = object.__getattribute__(
+                        layer, "_tracking_enabled"
+                    )
+                    if not layer_tracking:
                         object.__setattr__(layer, "_tracking_enabled", True)
-            return self._layers_cache
+            return layers_cache
 
-        layers_data = self._data.get("layers", [])
+        _data = object.__getattribute__(self, "_data")
+        layers_data = _data.get("layers", [])
 
         # Convert dicts to Layer objects (no deepcopy needed for _data)
         layers_objects = [Layer.from_dict(lyr, _copy=False) for lyr in layers_data]
+        tracking_enabled = object.__getattribute__(self, "_tracking_enabled")
         for layer in layers_objects:
             layer._set_parent(self)
             # Enable tracking if parent has it enabled
-            if self._tracking_enabled:
+            if tracking_enabled:
                 object.__setattr__(layer, "_tracking_enabled", True)
 
         # Create TrackedList and cache it

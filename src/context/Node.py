@@ -70,7 +70,9 @@ class Node(BaseObject):
     @property
     def x(self):
         """The x coordinate of the node."""
-        return self._data.get("x", 0)
+        # Use object.__getattribute__ to bypass tracked_getattribute
+        _data = object.__getattribute__(self, "_data")
+        return _data.get("x", 0)
 
     @x.setter
     def x(self, value):
@@ -79,7 +81,9 @@ class Node(BaseObject):
     @property
     def y(self):
         """The y coordinate of the node."""
-        return self._data.get("y", 0)
+        # Use object.__getattribute__ to bypass tracked_getattribute
+        _data = object.__getattribute__(self, "_data")
+        return _data.get("y", 0)
 
     @y.setter
     def y(self, value):
@@ -88,7 +92,9 @@ class Node(BaseObject):
     @property
     def type(self):
         """The node type (c/l/q/o with optional 's' suffix for smooth)."""
-        return self._data.get("type", "c")
+        # Use object.__getattribute__ to bypass tracked_getattribute
+        _data = object.__getattribute__(self, "_data")
+        return _data.get("type", "c")
 
     @type.setter
     def type(self, value):

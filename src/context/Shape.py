@@ -85,20 +85,26 @@ class Shape(BaseObject):
         """Return TrackedList of Node objects. _data stores dicts."""
         from .BaseObject import TrackedList
 
-        nodes_data = self._data.get("nodes")
+        # Use object.__getattribute__ to bypass tracked_getattribute
+        _data = object.__getattribute__(self, "_data")
+        nodes_data = _data.get("nodes")
         if not nodes_data:
             return None
 
         # Return cached list if it exists
-        if self._nodes_cache is not None:
-            return self._nodes_cache
+        nodes_cache = object.__getattribute__(self, "_nodes_cache")
+        if nodes_cache is not None:
+            return nodes_cache
 
         # Convert dicts to Node objects (no deepcopy needed for _data)
         nodes_objects = [Node.from_dict(n, _copy=False) for n in nodes_data]
         for node in nodes_objects:
             node._set_parent(self)
             # Enable tracking if parent has it enabled
-            if self._tracking_enabled:
+            tracking_enabled = object.__getattribute__(
+                self, "_tracking_enabled"
+            )
+            if tracking_enabled:
                 object.__setattr__(node, "_tracking_enabled", True)
 
         # Create TrackedList and cache it
