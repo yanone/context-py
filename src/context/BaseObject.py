@@ -560,6 +560,9 @@ class BaseObject:
             contexts = [context]
 
         for ctx in contexts:
+            # Check if already dirty in this context before propagating
+            was_already_dirty = self._dirty_flags.get(ctx, False)
+            
             self._dirty_flags[ctx] = True
 
             if field_name:
@@ -569,7 +572,9 @@ class BaseObject:
                     self._dirty_fields[ctx] = set()
                 self._dirty_fields[ctx].add(field_name)
 
-            if propagate:
+            # Only propagate if we weren't already dirty (prevents redundant calls)
+            # This makes mark_dirty idempotent for performance
+            if propagate and not was_already_dirty:
                 parent = self._get_parent()
                 if parent is not None:
                     parent.mark_dirty(ctx, propagate=True)
