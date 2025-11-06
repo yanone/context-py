@@ -51,12 +51,12 @@ class Font(BaseObject):
         else:
             # Convert nested objects to dicts
             if axes and not isinstance(axes[0] if axes else None, dict):
-                axes = [a.to_dict() if hasattr(a, "to_dict") else a for a in axes]
+                axes = [a._data if hasattr(a, "_data") else a for a in axes]
             if masters and not isinstance(masters[0] if masters else None, dict):
-                masters = [m.to_dict() if hasattr(m, "to_dict") else m for m in masters]
+                masters = [m._data if hasattr(m, "_data") else m for m in masters]
             if instances and not isinstance(instances[0] if instances else None, dict):
                 instances = [
-                    i.to_dict() if hasattr(i, "to_dict") else i for i in instances
+                    i._data if hasattr(i, "_data") else i for i in instances
                 ]
 
             data = {
@@ -152,7 +152,7 @@ class Font(BaseObject):
     def axes(self, value):
         """Store as dicts in _data and invalidate cache."""
         if value:
-            dict_axes = [a.to_dict() if hasattr(a, "to_dict") else a for a in value]
+            dict_axes = [a._data if hasattr(a, "_data") else a for a in value]
             self._data["axes"] = dict_axes
         else:
             self._data["axes"] = value
@@ -195,7 +195,7 @@ class Font(BaseObject):
         """Store as dicts in _data and invalidate cache."""
         if value:
             dict_instances = [
-                i.to_dict() if hasattr(i, "to_dict") else i for i in value
+                i._data if hasattr(i, "_data") else i for i in value
             ]
             self._data["instances"] = dict_instances
         else:
@@ -244,7 +244,7 @@ class Font(BaseObject):
     def masters(self, value):
         """Store as dicts in _data and invalidate cache."""
         if value:
-            dict_masters = [m.to_dict() if hasattr(m, "to_dict") else m for m in value]
+            dict_masters = [m._data if hasattr(m, "_data") else m for m in value]
             self._data["masters"] = dict_masters
         else:
             self._data["masters"] = value

@@ -81,7 +81,7 @@ class Master(BaseObject):
 
             # Convert guides to dicts
             if guides and not isinstance(guides[0] if guides else None, dict):
-                guides = [g.to_dict() if hasattr(g, "to_dict") else g for g in guides]
+                guides = [g._data if hasattr(g, "_data") else g for g in guides]
 
             data = {
                 "name": name,
@@ -173,7 +173,7 @@ class Master(BaseObject):
         """Store as dicts in _data and invalidate cache."""
         if value:
             # Convert Guide objects to dicts (serialize for to_dict())
-            dict_guides = [g.to_dict() if hasattr(g, "to_dict") else g for g in value]
+            dict_guides = [g._data if hasattr(g, "_data") else g for g in value]
             self._data["guides"] = dict_guides
         else:
             self._data["guides"] = value
