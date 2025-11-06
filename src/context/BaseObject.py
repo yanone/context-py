@@ -515,11 +515,16 @@ class BaseObject:
                     )
 
         # Convert Python field name to file format name if aliased
-        storage_name = self._field_aliases.get(field_name, field_name)
+        # Use object.__getattribute__ to bypass tracked_getattribute
+        field_aliases = object.__getattribute__(self, "_field_aliases")
+        storage_name = field_aliases.get(field_name, field_name)
 
         # Set the value and mark dirty with field name for tracking
-        self._data[storage_name] = value
-        if self._tracking_enabled:
+        _data = object.__getattribute__(self, "_data")
+        _data[storage_name] = value
+        
+        tracking_enabled = object.__getattribute__(self, "_tracking_enabled")
+        if tracking_enabled:
             # Propagate to immediate parent only (mark_dirty limits cascade)
             self.mark_dirty(field_name=field_name, propagate=True)
 
@@ -535,8 +540,11 @@ class BaseObject:
             field_name: Optional specific field that changed
             propagate: Whether to propagate dirty flag to parent
         """
-        if self._dirty_flags is None:
-            object.__setattr__(self, "_dirty_flags", {})
+        # Use object.__getattribute__ to bypass tracked_getattribute
+        dirty_flags = object.__getattribute__(self, "_dirty_flags")
+        if dirty_flags is None:
+            dirty_flags = {}
+            object.__setattr__(self, "_dirty_flags", dirty_flags)
 
         # If no context specified, mark for all standard contexts
         if context is None:
@@ -546,16 +554,18 @@ class BaseObject:
 
         for ctx in contexts:
             # Check if already dirty in this context before propagating
-            was_already_dirty = self._dirty_flags.get(ctx, False)
+            was_already_dirty = dirty_flags.get(ctx, False)
 
-            self._dirty_flags[ctx] = True
+            dirty_flags[ctx] = True
 
             if field_name:
-                if self._dirty_fields is None:
-                    object.__setattr__(self, "_dirty_fields", {})
-                if ctx not in self._dirty_fields:
-                    self._dirty_fields[ctx] = set()
-                self._dirty_fields[ctx].add(field_name)
+                dirty_fields = object.__getattribute__(self, "_dirty_fields")
+                if dirty_fields is None:
+                    dirty_fields = {}
+                    object.__setattr__(self, "_dirty_fields", dirty_fields)
+                if ctx not in dirty_fields:
+                    dirty_fields[ctx] = set()
+                dirty_fields[ctx].add(field_name)
 
             # Only propagate if we weren't already dirty (prevents redundant calls)
             # This makes mark_dirty idempotent for performance
@@ -611,14 +621,18 @@ class BaseObject:
 
     def is_dirty(self, context=DIRTY_FILE_SAVING):
         """Check if this object is dirty in the given context."""
-        if self._dirty_flags:
-            return self._dirty_flags.get(context, False)
+        # Use object.__getattribute__ to bypass tracked_getattribute
+        dirty_flags = object.__getattribute__(self, "_dirty_flags")
+        if dirty_flags:
+            return dirty_flags.get(context, False)
         return False
 
     def get_dirty_fields(self, context=DIRTY_FILE_SAVING):
         """Get the set of dirty fields for the given context."""
-        if self._dirty_fields and context in self._dirty_fields:
-            return self._dirty_fields[context].copy()
+        # Use object.__getattribute__ to bypass tracked_getattribute
+        dirty_fields = object.__getattribute__(self, "_dirty_fields")
+        if dirty_fields and context in dirty_fields:
+            return dirty_fields[context].copy()
         return set()
 
     def _set_parent(self, parent):
@@ -631,8 +645,10 @@ class BaseObject:
 
     def _get_parent(self):
         """Get parent object from weak reference."""
-        if self._parent_ref is not None:
-            return self._parent_ref()
+        # Use object.__getattribute__ to bypass tracked_getattribute
+        parent_ref = object.__getattribute__(self, "_parent_ref")
+        if parent_ref is not None:
+            return parent_ref()
         return None
 
     def _mark_children_clean(self, context, build_cache=False):
