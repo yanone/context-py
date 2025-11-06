@@ -46,7 +46,7 @@ class Shape(BaseObject):
         else:
             # Convert nodes to list of dicts if needed
             if nodes and not isinstance(nodes[0] if nodes else None, dict):
-                nodes = [n.to_dict() if hasattr(n, "to_dict") else n for n in nodes]
+                nodes = [n._data if hasattr(n, "_data") else n for n in nodes]
 
             data = {
                 "ref": ref,
@@ -109,10 +109,10 @@ class Shape(BaseObject):
 
     @nodes.setter
     def nodes(self, value):
-        """Store as dicts in _data and invalidate cache."""
+        """Store references to node._data in _data (shared refs)."""
         if value:
-            # Convert Node objects to dicts
-            dict_nodes = [n.to_dict() if hasattr(n, "to_dict") else n for n in value]
+            # SHARED REFS: Store references to node._data, not copies
+            dict_nodes = [n._data if hasattr(n, "_data") else n for n in value]
             self._data["nodes"] = dict_nodes
         else:
             self._data["nodes"] = value

@@ -36,7 +36,7 @@ class Glyph(BaseObject):
         else:
             # Convert layers to dicts
             if layers and not isinstance(layers[0] if layers else None, dict):
-                layers = [l.to_dict() if hasattr(l, "to_dict") else l for l in layers]
+                layers = [l._data if hasattr(l, "_data") else l for l in layers]
 
             data = {
                 "name": name,
@@ -124,7 +124,7 @@ class Glyph(BaseObject):
         """Store as dicts in _data and invalidate cache."""
         if value:
             dict_layers = [
-                layer.to_dict() if hasattr(layer, "to_dict") else layer
+                layer._data if hasattr(layer, "_data") else layer
                 for layer in value
             ]
             self._data["layers"] = dict_layers

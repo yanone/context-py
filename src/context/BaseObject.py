@@ -199,9 +199,10 @@ class TrackedList(list):
         """
         owner = self._owner_ref() if self._owner_ref else None
         if owner:
-            # Convert objects to dicts
+            # SHARED REFS: Store references to item._data (not copies!)
+            # This means modifying item._data auto-updates parent._data
             dict_list = [
-                item.to_dict() if hasattr(item, "to_dict") else item for item in self
+                item._data if hasattr(item, "_data") else item for item in self
             ]
             owner._data[self._field_name] = dict_list
 
@@ -519,7 +520,8 @@ class BaseObject:
         # Set the value and mark dirty with field name for tracking
         self._data[storage_name] = value
         if self._tracking_enabled:
-            self.mark_dirty(field_name=field_name)
+            # Propagate to immediate parent only (mark_dirty limits cascade)
+            self.mark_dirty(field_name=field_name, propagate=True)
 
     _write_one_line = False
     _separate_items = {}
@@ -562,7 +564,7 @@ class BaseObject:
         for ctx in contexts:
             # Check if already dirty in this context before propagating
             was_already_dirty = self._dirty_flags.get(ctx, False)
-            
+
             self._dirty_flags[ctx] = True
 
             if field_name:
@@ -1022,19 +1024,40 @@ class BaseObject:
         Return dictionary representation.
 
         _data contains ONLY serializable data (dicts, lists, primitives).
-        This method returns a COPY to prevent external modifications.
+        However, when dirty tracking is enabled, _data becomes a TrackedDict
+        with shared references to other TrackedDict objects. We must convert
+        these back to plain dicts for efficient serialization.
 
         Returns:
-            dict: A copy of the object's data dictionary (serializable)
+            dict: Plain dictionary representation (no TrackedDict objects)
         """
 
         # CRITICAL INSTRUCTION:
         # With dict-backed storage, _data already contains serializable data.
         # Never override this method to build dicts on-the-fly from properties,
         # but instead implement property getters/setters that convert to/from dicts.
-        # We need to_dict() to be instant for performance.
 
-        return dict(self._data)
+        def _convert_to_plain_dict(obj):
+            """Recursively convert TrackedDict instances to plain dicts."""
+            if isinstance(obj, TrackedDict):
+                # Convert TrackedDict to plain dict, recursively converting nested TrackedDicts
+                return {k: _convert_to_plain_dict(v) for k, v in obj.items()}
+            elif isinstance(obj, list):
+                # Recursively convert list items
+                return [_convert_to_plain_dict(item) for item in obj]
+            elif isinstance(obj, dict) and not isinstance(obj, I18NDictionary):
+                # Convert any other dict subclass to plain dict
+                return {k: _convert_to_plain_dict(v) for k, v in obj.items()}
+            else:
+                # Primitives, I18NDictionary, and other objects pass through
+                return obj
+
+        # If _data is a TrackedDict (dirty tracking enabled), convert to plain dict
+        # Otherwise (plain dict), just return a shallow copy for safety
+        if isinstance(self._data, TrackedDict):
+            return _convert_to_plain_dict(self._data)
+        else:
+            return dict(self._data)
 
     @classmethod
     def from_dict(cls, data, _copy=True, _validate=True):

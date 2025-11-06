@@ -71,13 +71,13 @@ class Layer(BaseObject):
         if _data is not None:
             super().__init__(_data=_data)
         else:
-            # Convert nested objects to dicts
+            # SHARED REFS: Store references to object._data
             if shapes and not isinstance(shapes[0] if shapes else None, dict):
-                shapes = [s.to_dict() if hasattr(s, "to_dict") else s for s in shapes]
+                shapes = [s._data if hasattr(s, "_data") else s for s in shapes]
             if anchors and not isinstance(anchors[0] if anchors else None, dict):
-                anchors = [a.to_dict() if hasattr(a, "to_dict") else a for a in anchors]
+                anchors = [a._data if hasattr(a, "_data") else a for a in anchors]
             if guides and not isinstance(guides[0] if guides else None, dict):
-                guides = [g.to_dict() if hasattr(g, "to_dict") else g for g in guides]
+                guides = [g._data if hasattr(g, "_data") else g for g in guides]
 
             data = {
                 "width": width,
@@ -198,9 +198,9 @@ class Layer(BaseObject):
 
     @guides.setter
     def guides(self, value):
-        """Store as dicts in _data and invalidate cache."""
+        """Store references to guide._data (shared refs)."""
         if value:
-            dict_guides = [g.to_dict() if hasattr(g, "to_dict") else g for g in value]
+            dict_guides = [g._data if hasattr(g, "_data") else g for g in value]
             self._data["guides"] = dict_guides
         else:
             self._data["guides"] = value
@@ -236,9 +236,9 @@ class Layer(BaseObject):
 
     @shapes.setter
     def shapes(self, value):
-        """Store as dicts in _data and invalidate cache."""
+        """Store references to shape._data (shared refs)."""
         if value:
-            dict_shapes = [s.to_dict() if hasattr(s, "to_dict") else s for s in value]
+            dict_shapes = [s._data if hasattr(s, "_data") else s for s in value]
             self._data["shapes"] = dict_shapes
         else:
             self._data["shapes"] = value
@@ -274,9 +274,9 @@ class Layer(BaseObject):
 
     @anchors.setter
     def anchors(self, value):
-        """Store as dicts in _data and invalidate cache."""
+        """Store references to anchor._data (shared refs)."""
         if value:
-            dict_anchors = [a.to_dict() if hasattr(a, "to_dict") else a for a in value]
+            dict_anchors = [a._data if hasattr(a, "_data") else a for a in value]
             self._data["anchors"] = dict_anchors
         else:
             self._data["anchors"] = value
