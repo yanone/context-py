@@ -115,7 +115,7 @@ class Master(BaseObject):
             value = I18NDictionary.with_default(value)
         self._data["name"] = value
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="name")
 
     @property
     def id(self):
@@ -133,7 +133,7 @@ class Master(BaseObject):
     def location(self, value):
         self._data["location"] = value
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="location")
 
     @property
     def sparse(self):
@@ -180,7 +180,7 @@ class Master(BaseObject):
         # Invalidate cache
         object.__setattr__(self, "_guides_cache", None)
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="name")
 
     @property
     def metrics(self):
@@ -190,7 +190,7 @@ class Master(BaseObject):
     def metrics(self, value):
         self._data["metrics"] = value
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="metrics")
 
     @property
     def kerning(self):
@@ -229,7 +229,7 @@ class Master(BaseObject):
         else:
             self._data["kerning"] = value
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="kerning")
 
     @property
     def font(self):

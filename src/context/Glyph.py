@@ -61,7 +61,7 @@ class Glyph(BaseObject):
     def name(self, value):
         self._data["name"] = value
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="name")
 
     @property
     def production_name(self):
@@ -87,7 +87,7 @@ class Glyph(BaseObject):
     def codepoints(self, value):
         self._data["codepoints"] = value
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="production_name")
 
     @property
     def layers(self):
@@ -133,7 +133,7 @@ class Glyph(BaseObject):
         # Invalidate cache
         object.__setattr__(self, "_layers_cache", None)
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="layers")
 
     @property
     def exported(self):

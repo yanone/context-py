@@ -78,7 +78,7 @@ class Shape(BaseObject):
     def transform(self, value):
         self._data["transform"] = value
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="transform")
 
     @property
     def nodes(self):
@@ -119,7 +119,7 @@ class Shape(BaseObject):
         # Invalidate cache
         object.__setattr__(self, "_nodes_cache", None)
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="nodes")
 
     @property
     def closed(self):

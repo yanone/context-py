@@ -3,8 +3,8 @@
 Benchmark serialization and coordinate editing performance.
 
 Tests:
-1. Serialization: Call orjson.dumps(font.to_dict()) 10 times
-2. Coordinate edits: Modify all x,y coordinates (+1, then -1) 10 times
+1. Serialization: Call orjson.dumps(font.to_dict()) 5 times
+2. Coordinate edits: Modify all x,y coordinates (+1, then -1) 5 times
 """
 
 import time
@@ -42,7 +42,7 @@ for i in range(5):
 
 avg_serialization = sum(serialization_times) / len(serialization_times)
 print(f"\nAverage serialization time: {avg_serialization:.4f} seconds")
-print(f"Total time for 10 runs: {sum(serialization_times):.4f} seconds")
+print(f"Total time for 5 runs: {sum(serialization_times):.4f} seconds")
 
 print("\n" + "=" * 60)
 print("BENCHMARK 2: Coordinate Editing Performance")
@@ -78,7 +78,7 @@ for i in range(5):
 
 avg_edit = sum(edit_times) / len(edit_times)
 print(f"\nAverage coordinate editing time: {avg_edit:.4f} seconds")
-print(f"Total time for 10 runs: {sum(edit_times):.4f} seconds")
+print(f"Total time for 5 runs: {sum(edit_times):.4f} seconds")
 
 print("\n" + "=" * 60)
 print("SUMMARY")

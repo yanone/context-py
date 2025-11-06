@@ -102,7 +102,7 @@ class Font(BaseObject):
     def upm(self, value):
         self._data["upm"] = value
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="upm")
 
     @property
     def version(self):
@@ -117,7 +117,7 @@ class Font(BaseObject):
     def version(self, value):
         self._data["version"] = value
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="version")
 
     @property
     def axes(self):
@@ -159,7 +159,7 @@ class Font(BaseObject):
         # Invalidate cache
         object.__setattr__(self, "_axes_cache", None)
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="axes")
 
     @property
     def instances(self):
@@ -203,7 +203,7 @@ class Font(BaseObject):
         # Invalidate cache
         object.__setattr__(self, "_instances_cache", None)
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="instances")
 
     @property
     def masters(self):
@@ -251,7 +251,7 @@ class Font(BaseObject):
         # Invalidate cache
         object.__setattr__(self, "_masters_cache", None)
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="masters")
 
     @property
     def glyphs(self):
@@ -284,7 +284,7 @@ class Font(BaseObject):
     def glyphs(self, value):
         self._data["glyphs"] = value
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="glyphs")
 
     @property
     def note(self):
@@ -294,7 +294,7 @@ class Font(BaseObject):
     def note(self, value):
         self._data["note"] = value
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="note")
 
     @property
     def date(self):
@@ -318,7 +318,7 @@ class Font(BaseObject):
     def names(self, value):
         self._data["names"] = value
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="date")
 
     @property
     def custom_opentype_values(self):
@@ -328,7 +328,7 @@ class Font(BaseObject):
     def custom_opentype_values(self, value):
         self._data["custom_opentype_values"] = value
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="custom_opentype_values")
 
     @property
     def filename(self):
@@ -352,7 +352,7 @@ class Font(BaseObject):
     def features(self, value):
         self._data["features"] = value
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="filename")
 
     @property
     def first_kern_groups(self):
@@ -362,7 +362,7 @@ class Font(BaseObject):
     def first_kern_groups(self, value):
         self._data["first_kern_groups"] = value
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="first_kern_groups")
 
     @property
     def second_kern_groups(self):
@@ -372,7 +372,7 @@ class Font(BaseObject):
     def second_kern_groups(self, value):
         self._data["second_kern_groups"] = value
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="second_kern_groups")
 
     def initialize_dirty_tracking(self):
         """

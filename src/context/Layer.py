@@ -140,7 +140,7 @@ class Layer(BaseObject):
         else:
             self._data["vertWidth"] = value
             if self._tracking_enabled:
-                self.mark_dirty()
+                self.mark_dirty(field_name="width")
 
     @property
     def name(self):
@@ -153,7 +153,7 @@ class Layer(BaseObject):
         else:
             self._data["name"] = value
             if self._tracking_enabled:
-                self.mark_dirty()
+                self.mark_dirty(field_name="name")
 
     @property
     def _master(self):
@@ -207,7 +207,7 @@ class Layer(BaseObject):
         # Invalidate cache
         object.__setattr__(self, "_guides_cache", None)
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="_master")
 
     @property
     def shapes(self):
@@ -245,7 +245,7 @@ class Layer(BaseObject):
         # Invalidate cache
         object.__setattr__(self, "_shapes_cache", None)
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="shapes")
 
     @property
     def anchors(self):
@@ -283,7 +283,7 @@ class Layer(BaseObject):
         # Invalidate cache
         object.__setattr__(self, "_anchors_cache", None)
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="anchors")
 
     @property
     def color(self):
@@ -293,7 +293,7 @@ class Layer(BaseObject):
     def color(self, value):
         self._data["color"] = value
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="color")
 
     @property
     def layerIndex(self):
@@ -303,7 +303,7 @@ class Layer(BaseObject):
     def layerIndex(self, value):
         self._data["layerIndex"] = value
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="layerIndex")
 
     @property
     def background(self):
@@ -329,7 +329,7 @@ class Layer(BaseObject):
     def location(self, value):
         self._data["location"] = value
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="background")
 
     @property
     def _font(self):

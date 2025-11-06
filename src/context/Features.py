@@ -36,7 +36,7 @@ class Features(BaseObject):
     def classes(self, value):
         self._data["classes"] = value
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="classes")
 
     @property
     def prefixes(self):
@@ -46,7 +46,7 @@ class Features(BaseObject):
     def prefixes(self, value):
         self._data["prefixes"] = value
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="prefixes")
 
     @property
     def features(self):
@@ -56,7 +56,7 @@ class Features(BaseObject):
     def features(self, value):
         self._data["features"] = value
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="features")
 
     @classmethod
     def from_fea(cls, fea: str, glyphNames=()) -> "Features":

@@ -68,7 +68,7 @@ class Instance(BaseObject):
             value = I18NDictionary.with_default(value)
         self._data["name"] = value
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="name")
 
     @property
     def location(self):
@@ -78,7 +78,7 @@ class Instance(BaseObject):
     def location(self, value):
         self._data["location"] = value
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="location")
 
     @property
     def variable(self):
@@ -88,7 +88,7 @@ class Instance(BaseObject):
     def variable(self, value):
         self._data["variable"] = value
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="variable")
 
     @property
     def customNames(self):
@@ -107,7 +107,7 @@ class Instance(BaseObject):
         else:
             self._data["customNames"] = value
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="customNames")
 
     @property
     def localisedStyleName(self):

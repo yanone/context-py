@@ -538,23 +538,6 @@ class BaseObject:
         if self._dirty_flags is None:
             object.__setattr__(self, "_dirty_flags", {})
 
-        # Auto-detect field name from property setter if not provided
-        if field_name is None:
-            import inspect
-
-            frame = inspect.currentframe()
-            try:
-                # Check if called from a property setter
-                if frame and frame.f_back:
-                    caller_name = frame.f_back.f_code.co_name
-                    # Property setters are named like the property
-                    if hasattr(self.__class__, caller_name):
-                        prop = getattr(self.__class__, caller_name)
-                        if isinstance(prop, property):
-                            field_name = caller_name
-            finally:
-                del frame
-
         # If no context specified, mark for all standard contexts
         if context is None:
             contexts = [DIRTY_FILE_SAVING, DIRTY_CANVAS_RENDER]
@@ -808,7 +791,8 @@ class BaseObject:
             # Get the attribute using default mechanism
             value = object.__getattribute__(self, name)
 
-            # Early exit: Only process user_data
+            # Early exit: Only process user_data (fastest check first)
+            # This skips tracking for ALL other attributes including private ones
             if name != "user_data":
                 return value
 

@@ -77,7 +77,7 @@ class Axis(BaseObject):
             value = I18NDictionary.with_default(value)
         self._data["name"] = value
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="name")
 
     @property
     def tag(self):
@@ -87,7 +87,7 @@ class Axis(BaseObject):
     def tag(self, value):
         self._data["tag"] = value
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="tag")
 
     @property
     def id(self):
@@ -105,7 +105,7 @@ class Axis(BaseObject):
     def min(self, value):
         self._data["min"] = value
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="id")
 
     @property
     def max(self):
@@ -115,7 +115,7 @@ class Axis(BaseObject):
     def max(self, value):
         self._data["max"] = value
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="max")
 
     @property
     def default(self):
@@ -125,7 +125,7 @@ class Axis(BaseObject):
     def default(self, value):
         self._data["default"] = value
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="default")
 
     @property
     def map(self):
@@ -135,7 +135,7 @@ class Axis(BaseObject):
     def map(self, value):
         self._data["map"] = value
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="map")
 
     @property
     def hidden(self):
@@ -145,7 +145,7 @@ class Axis(BaseObject):
     def hidden(self, value):
         self._data["hidden"] = value
         if self._tracking_enabled:
-            self.mark_dirty()
+            self.mark_dirty(field_name="hidden")
 
     def normalize_value(self, value: Number) -> float:
         """Return a normalized co-ordinate (-1.0 to 1.0) for the given value.
