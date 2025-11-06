@@ -101,9 +101,7 @@ class Shape(BaseObject):
         for node in nodes_objects:
             node._set_parent(self)
             # Enable tracking if parent has it enabled
-            tracking_enabled = object.__getattribute__(
-                self, "_tracking_enabled"
-            )
+            tracking_enabled = object.__getattribute__(self, "_tracking_enabled")
             if tracking_enabled:
                 object.__setattr__(node, "_tracking_enabled", True)
 

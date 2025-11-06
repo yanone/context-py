@@ -99,14 +99,10 @@ class Glyph(BaseObject):
         layers_cache = object.__getattribute__(self, "_layers_cache")
         if layers_cache is not None:
             # Check if cached objects need tracking enabled
-            tracking_enabled = object.__getattribute__(
-                self, "_tracking_enabled"
-            )
+            tracking_enabled = object.__getattribute__(self, "_tracking_enabled")
             if tracking_enabled:
                 for layer in layers_cache:
-                    layer_tracking = object.__getattribute__(
-                        layer, "_tracking_enabled"
-                    )
+                    layer_tracking = object.__getattribute__(layer, "_tracking_enabled")
                     if not layer_tracking:
                         object.__setattr__(layer, "_tracking_enabled", True)
             return layers_cache
@@ -134,8 +130,7 @@ class Glyph(BaseObject):
         """Store as dicts in _data and invalidate cache."""
         if value:
             dict_layers = [
-                layer._data if hasattr(layer, "_data") else layer
-                for layer in value
+                layer._data if hasattr(layer, "_data") else layer for layer in value
             ]
             self._data["layers"] = dict_layers
         else:

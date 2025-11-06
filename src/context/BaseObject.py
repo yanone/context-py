@@ -185,9 +185,10 @@ class TrackedList(list):
             ):
                 object.__setattr__(item, "_tracking_enabled", True)
                 # Initialize dirty flags if not already set
-                if item._dirty_flags is None:
+                # Use object.__getattribute__ to bypass tracked_getattribute
+                if object.__getattribute__(item, "_dirty_flags") is None:
                     object.__setattr__(item, "_dirty_flags", {})
-                if item._dirty_fields is None:
+                if object.__getattribute__(item, "_dirty_fields") is None:
                     object.__setattr__(item, "_dirty_fields", {})
 
     def _sync_to_data(self, mark_dirty=True):
@@ -570,9 +571,12 @@ class BaseObject:
             # Only propagate if we weren't already dirty (prevents redundant calls)
             # This makes mark_dirty idempotent for performance
             if propagate and not was_already_dirty:
-                parent = self._get_parent()
-                if parent is not None:
-                    parent.mark_dirty(ctx, propagate=True)
+                # Use object.__getattribute__ to bypass tracked_getattribute
+                parent_ref = object.__getattribute__(self, "_parent_ref")
+                if parent_ref is not None:
+                    parent = parent_ref()
+                    if parent is not None:
+                        parent.mark_dirty(ctx, propagate=True)
 
     def mark_clean(self, context=DIRTY_FILE_SAVING, recursive=False, build_cache=False):
         """

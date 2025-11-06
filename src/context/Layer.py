@@ -228,9 +228,7 @@ class Layer(BaseObject):
         for shape in shapes_objects:
             shape._set_parent(self)
             # Enable tracking if parent has it enabled
-            tracking_enabled = object.__getattribute__(
-                self, "_tracking_enabled"
-            )
+            tracking_enabled = object.__getattribute__(self, "_tracking_enabled")
             if tracking_enabled:
                 object.__setattr__(shape, "_tracking_enabled", True)
 
