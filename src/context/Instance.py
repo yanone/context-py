@@ -18,12 +18,16 @@ class Instance(BaseObject):
     ):
         """Initialize Instance with dict-backed storage."""
         if _data is not None:
-            # Convert name if it's a dict
-            if "name" in _data and isinstance(_data["name"], dict):
-                if not isinstance(_data["name"], I18NDictionary):
-                    i18n = I18NDictionary()
-                    i18n.update(_data["name"])
-                    _data["name"] = i18n
+            # Convert name to I18NDictionary if needed
+            if "name" in _data:
+                if isinstance(_data["name"], str):
+                    # Convert string to I18NDictionary
+                    _data["name"] = I18NDictionary.with_default(_data["name"])
+                elif isinstance(_data["name"], dict):
+                    if not isinstance(_data["name"], I18NDictionary):
+                        i18n = I18NDictionary()
+                        i18n.update(_data["name"])
+                        _data["name"] = i18n
             # Ensure customNames is a dict (serialize Names objects)
             if "customNames" in _data and isinstance(_data["customNames"], Names):
                 _data["customNames"] = _data["customNames"].to_dict()
