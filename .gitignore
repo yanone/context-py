@@ -2,7 +2,7 @@
 *.ufo
 *.designspace
 *.glyphspackage
-*.babelfont
+# *.babelfont
 *.vfj
 *.vfb
 out
@@ -126,5 +126,5 @@ dist
 *.fea
 *.ttx
 *.test
-*.json
+# *.json
 *.nfsf
