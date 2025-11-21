@@ -23,15 +23,37 @@ import os
 class Context(BaseConvertor):
     suffix = ".babelfont"
 
+    def _is_single_json_file(self):
+        """Check if the filename is a single JSON file or a directory."""
+        # Check if it's a file (single JSON) or directory (folder structure)
+        return os.path.isfile(self.filename)
+
     def _load_file(self, filename):
         with open(os.path.join(self.filename, filename), "r") as f:
             contents = f.read()
         return orjson.loads(contents)
 
     def _load(self):
-        names = self._load_file("names.json")
-        info = self._load_file("info.json")
-        glyphs = self._load_file("glyphs.json")
+        # Check if loading from single JSON file or folder structure
+        if self._is_single_json_file():
+            return self._load_from_json()
+        else:
+            return self._load_from_folder_structure()
+
+    def _load_from_json(self):
+        """Load from a single .babelfont.json file."""
+        with open(self.filename, "rb") as f:
+            data = orjson.loads(f.read())
+
+        # Load from the single JSON structure
+        return self._load_from_dict(data)
+
+    def _load_from_dict(self, data):
+        """Load font from a dictionary (used for single JSON file loading)."""
+        # Extract main sections
+        names = data.get("names", {})
+        info = data  # Font-level info is at the root level
+        glyphs = data.get("glyphs", [])
         self.font.user_data = info.get("_", {})
 
         # With dict-backed storage, check if the attribute exists
@@ -91,14 +113,29 @@ class Context(BaseConvertor):
             glyph = Glyph.from_dict(g, _copy=False, _validate=validate)
             glyph._set_parent(self.font)
             self.font.glyphs.append(glyph)
-            for json_layer in self._load_file(glyph.babelfont_filename):
-                layer = self._inflate_layer(json_layer)
-                layer._glyph = glyph
-                layer._set_parent(glyph)
-                glyph.layers.append(layer)
+            # For single JSON file, layers are in the glyph data
+            # For folder structure, layers are in separate files
+            if self._is_single_json_file():
+                # Layers are embedded in the glyph data
+                layers_data = g.get("layers", [])
+                for json_layer in layers_data:
+                    layer = self._inflate_layer(json_layer)
+                    layer._glyph = glyph
+                    layer._set_parent(glyph)
+                    glyph.layers.append(layer)
+            else:
+                # Load layers from separate file
+                for json_layer in self._load_file(glyph.babelfont_filename):
+                    layer = self._inflate_layer(json_layer)
+                    layer._glyph = glyph
+                    layer._set_parent(glyph)
+                    glyph.layers.append(layer)
 
         self._load_metadata(info)
-        self._load_features()
+        if self._is_single_json_file():
+            self._load_features_from_data(info)
+        else:
+            self._load_features()
 
         # Store the filename for later saving
         self.font.filename = self.filename
@@ -170,6 +207,10 @@ class Context(BaseConvertor):
             self.font.masters.append(master)
 
     def _inflate_layer(self, json_layer):
+        # Ensure json_layer is a dict (not already a Layer object)
+        if isinstance(json_layer, Layer):
+            return json_layer
+
         # Extract components if present, they'll be added to shapes
         components = json_layer.pop("components", [])
 
@@ -228,9 +269,41 @@ class Context(BaseConvertor):
         for k in ["note", "upm", "version", "date", "customOpenTypeValues"]:
             if k in info:
                 setattr(self.font, k, info[k])
-        self.font.date = datetime.strptime(self.font.date, "%Y-%m-%d %H:%M:%S")
+        # Parse date - handle both folder format and ISO 8601 format
+        if hasattr(self.font, "date") and self.font.date:
+            if isinstance(self.font.date, str):
+                # Try folder format first
+                try:
+                    self.font.date = datetime.strptime(
+                        self.font.date, "%Y-%m-%d %H:%M:%S"
+                    )
+                except ValueError:
+                    # Try ISO 8601 format: 2024-03-23T23:08:27+01:00
+                    # Strip timezone and convert to simple format
+                    date_str = self.font.date.split("+")[0].split("-")[0]
+                    date_str = self.font.date.split("+")[0].replace("T", " ")
+                    # Handle potential trailing timezone info
+                    if "-" in date_str.split(" ")[1]:
+                        date_str = date_str.rsplit("-", 1)[0]
+                    self.font.date = datetime.strptime(date_str, "%Y-%m-%d %H:%M:%S")
+
+    def _load_features_from_data(self, info):
+        """Load features from data dict (for single JSON file)."""
+        if "features" in info and info["features"]:
+            features_data = info["features"]
+            # Features are stored as structured dict, not FEA text
+            if isinstance(features_data, dict):
+                self.font.features = Features.from_dict(
+                    features_data, _copy=False, _validate=False
+                )
+                self.font.features._set_parent(self.font)
+            elif isinstance(features_data, str):
+                # Handle string format (FEA text)
+                self.font.features = Features.from_fea(features_data)
+                self.font.features._set_parent(self.font)
 
     def _load_features(self):
+        """Load features from .fea file (for folder structure)."""
         path = os.path.join(self.filename, "features.fea")
         if os.path.isfile(path):
             with open(path, "r") as f:
@@ -240,6 +313,100 @@ class Context(BaseConvertor):
                 # not present in the current font
                 self.font.features = Features.from_fea(fea_content)
                 self.font.features._set_parent(self.font)
+
+    def _load_from_folder(self):
+        """Load from .babelfont folder structure."""
+        names = self._load_file("names.json")
+        info = self._load_file("info.json")
+        glyphs = self._load_file("glyphs.json")
+
+        # Merge names into info for unified loading
+        info["names"] = names
+        info["glyphs"] = glyphs
+
+        return self._load_from_dict(info)
+
+    def _load_from_folder_structure(self):
+        """Load from .babelfont folder structure with separate layer files."""
+        names = self._load_file("names.json")
+        info = self._load_file("info.json")
+        glyphs = self._load_file("glyphs.json")
+        self.font.user_data = info.get("_", {})
+
+        # Load names
+        names_fields = {
+            "familyName",
+            "styleName",
+            "copyright",
+            "version",
+            "trademark",
+            "manufacturer",
+            "designer",
+            "description",
+            "vendorURL",
+            "designerURL",
+            "license",
+            "licenseURL",
+            "compatibleFullName",
+            "sampleText",
+            "postScriptFontName",
+            "postScriptSlantAngle",
+            "WWSFamilyName",
+            "WWSSubfamilyName",
+            "lightBackgroundPalette",
+            "darkBackgroundPalette",
+            "variationsPostScriptNamePrefix",
+            "preferredFamilyName",
+            "preferredSubfamilyName",
+        }
+        for k, v in names.items():
+            if k in names_fields:
+                getattr(self.font.names, k).copy_in(v)
+            elif k == "_":
+                self.font.names.user_data = v
+        self.font.names._set_parent(self.font)
+
+        validate = getattr(self, "_validate", True)
+
+        # Load axes
+        self.font.axes = [
+            Axis.from_dict(j, _copy=False, _validate=validate)
+            for j in info.get("axes", [])
+        ]
+        for axis in self.font.axes:
+            axis._set_parent(self.font)
+
+        # Load instances
+        instances = [
+            Instance.from_dict(j, _copy=False, _validate=validate)
+            for j in info.get("instances", [])
+        ]
+        self.font.instances = instances
+        for instance in self.font.instances:
+            instance._set_parent(self.font)
+
+        # Load masters
+        self._load_masters(info.get("masters", []))
+
+        # Load glyphs with layers from separate files
+        for g in glyphs:
+            glyph = Glyph.from_dict(g, _copy=False, _validate=validate)
+            glyph._set_parent(self.font)
+            self.font.glyphs.append(glyph)
+            # Load layers from separate file
+            for json_layer in self._load_file(glyph.babelfont_filename):
+                layer = self._inflate_layer(json_layer)
+                layer._glyph = glyph
+                layer._set_parent(glyph)
+                glyph.layers.append(layer)
+
+        self._load_metadata(info)
+        self._load_features()
+
+        # Store the filename for later saving
+        self.font.filename = self.filename
+
+        return self.font
 
     def _save(self):
         """Save the font to disk."""
