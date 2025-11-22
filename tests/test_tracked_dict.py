@@ -14,7 +14,7 @@ def test_tracked_dict_setitem():
     assert not font.is_dirty(DIRTY_FILE_SAVING)
 
     # Set a key in user_data
-    font.user_data["com.test"] = "value"
+    font.format_specific["com.test"] = "value"
 
     assert font.is_dirty(DIRTY_FILE_SAVING)
 
@@ -28,7 +28,7 @@ def test_tracked_dict_delitem():
     assert not font.is_dirty(DIRTY_FILE_SAVING)
 
     # Delete a key from user_data
-    del font.user_data["com.test"]
+    del font.format_specific["com.test"]
 
     assert font.is_dirty(DIRTY_FILE_SAVING)
 
@@ -42,7 +42,7 @@ def test_tracked_dict_update():
     assert not font.is_dirty(DIRTY_FILE_SAVING)
 
     # Update with multiple keys
-    font.user_data.update({"com.test1": "value1", "com.test2": "value2"})
+    font.format_specific.update({"com.test1": "value1", "com.test2": "value2"})
 
     assert font.is_dirty(DIRTY_FILE_SAVING)
 
@@ -55,10 +55,10 @@ def test_tracked_dict_clear():
 
     assert not font.is_dirty(DIRTY_FILE_SAVING)
 
-    font.user_data.clear()
+    font.format_specific.clear()
 
     assert font.is_dirty(DIRTY_FILE_SAVING)
-    assert len(font.user_data) == 0
+    assert len(font.format_specific) == 0
 
 
 def test_tracked_dict_pop():
@@ -69,7 +69,7 @@ def test_tracked_dict_pop():
 
     assert not font.is_dirty(DIRTY_FILE_SAVING)
 
-    value = font.user_data.pop("com.test")
+    value = font.format_specific.pop("com.test")
 
     assert value == "value"
     assert font.is_dirty(DIRTY_FILE_SAVING)
@@ -84,13 +84,13 @@ def test_tracked_dict_setdefault():
     assert not font.is_dirty(DIRTY_FILE_SAVING)
 
     # setdefault should mark dirty when key doesn't exist
-    font.user_data.setdefault("com.test", "default")
+    font.format_specific.setdefault("com.test", "default")
 
     assert font.is_dirty(DIRTY_FILE_SAVING)
 
     # setdefault should NOT mark dirty when key exists
     font.mark_clean(DIRTY_FILE_SAVING)
-    font.user_data.setdefault("com.test", "different")
+    font.format_specific.setdefault("com.test", "different")
 
     assert not font.is_dirty(DIRTY_FILE_SAVING)
 
@@ -102,10 +102,10 @@ def test_tracked_dict_nested_modification():
     font.mark_clean(DIRTY_FILE_SAVING)
 
     # Nested modification should now be detected when user_data is accessed
-    font.user_data["com.test"]["nested"] = "changed"
+    font.format_specific["com.test"]["nested"] = "changed"
 
     # Accessing user_data triggers the nested change detection
-    _ = font.user_data
+    _ = font.format_specific
     assert font.is_dirty(DIRTY_FILE_SAVING)
 
 
@@ -116,8 +116,8 @@ def test_tracked_dict_initialization_with_underscore():
 
     from context.BaseObject import TrackedDict
 
-    assert isinstance(font.user_data, TrackedDict)
-    assert font.user_data["com.test"] == "value"
+    assert isinstance(font.format_specific, TrackedDict)
+    assert font.format_specific["com.test"] == "value"
 
 
 def test_tracked_dict_assignment_converts_to_tracked():
@@ -126,11 +126,11 @@ def test_tracked_dict_assignment_converts_to_tracked():
     font.initialize_dirty_tracking()
 
     # Assign a regular dict
-    font.user_data = {"com.test": "value"}
+    font.format_specific = {"com.test": "value"}
 
     from context.BaseObject import TrackedDict
 
-    assert isinstance(font.user_data, TrackedDict)
+    assert isinstance(font.format_specific, TrackedDict)
 
 
 def test_tracked_dict_on_different_objects():
@@ -151,27 +151,27 @@ def test_tracked_dict_on_different_objects():
         # Convert user_data to TrackedDict
         from context.BaseObject import TrackedDict
 
-        if isinstance(obj.user_data, dict) and not isinstance(
-            obj.user_data, TrackedDict
+        if isinstance(obj.format_specific, dict) and not isinstance(
+            obj.format_specific, TrackedDict
         ):
             tracked = TrackedDict(owner=obj)
-            tracked.update(obj.user_data)
+            tracked.update(obj.format_specific)
             object.__setattr__(obj, "user_data", tracked)
 
     from context.BaseObject import TrackedDict
 
-    assert isinstance(glyph.user_data, TrackedDict)
-    assert isinstance(layer.user_data, TrackedDict)
-    assert isinstance(node.user_data, TrackedDict)
+    assert isinstance(glyph.format_specific, TrackedDict)
+    assert isinstance(layer.format_specific, TrackedDict)
+    assert isinstance(node.format_specific, TrackedDict)
 
     # Test modifications mark dirty
     glyph.mark_clean(DIRTY_FILE_SAVING)
     layer.mark_clean(DIRTY_FILE_SAVING)
     node.mark_clean(DIRTY_FILE_SAVING)
 
-    glyph.user_data["new"] = "value"
-    layer.user_data["new"] = "value"
-    node.user_data["new"] = "value"
+    glyph.format_specific["new"] = "value"
+    layer.format_specific["new"] = "value"
+    node.format_specific["new"] = "value"
 
     assert glyph.is_dirty(DIRTY_FILE_SAVING)
     assert layer.is_dirty(DIRTY_FILE_SAVING)
@@ -184,16 +184,16 @@ def test_tracked_dict_preserves_dict_interface():
     font.initialize_dirty_tracking()
 
     # Test dict operations
-    assert len(font.user_data) == 2
-    assert "key1" in font.user_data
-    assert "key3" not in font.user_data
-    assert list(font.user_data.keys()) == ["key1", "key2"]
-    assert list(font.user_data.values()) == ["value1", "value2"]
-    assert list(font.user_data.items()) == [("key1", "value1"), ("key2", "value2")]
+    assert len(font.format_specific) == 2
+    assert "key1" in font.format_specific
+    assert "key3" not in font.format_specific
+    assert list(font.format_specific.keys()) == ["key1", "key2"]
+    assert list(font.format_specific.values()) == ["value1", "value2"]
+    assert list(font.format_specific.items()) == [("key1", "value1"), ("key2", "value2")]
 
     # Test iteration
     keys = []
-    for key in font.user_data:
+    for key in font.format_specific:
         keys.append(key)
     assert keys == ["key1", "key2"]
 
@@ -208,20 +208,19 @@ def test_tracked_dict_multiple_contexts():
     assert not font.is_dirty(DIRTY_FILE_SAVING)
     assert not font.is_dirty(DIRTY_CANVAS_RENDER)
 
-    font.user_data["com.test"] = "value"
+    font.format_specific["com.test"] = "value"
 
     assert font.is_dirty(DIRTY_FILE_SAVING)
     assert font.is_dirty(DIRTY_CANVAS_RENDER)
 
 
-def test_user_data_sorted_serialization():
-    """Test that user_data keys are sorted alphabetically when serialized."""
-    import orjson
+def test_format_specific_preserves_order():
+    """Test that format_specific keys preserve insertion order."""
     from io import BytesIO
 
-    # Create font with unsorted user_data keys
+    # Create font with specific key order
     font = Font(
-        _={
+        format_specific={
             "z.last": "value1",
             "a.first": "value2",
             "m.middle": "value3",
@@ -233,20 +232,14 @@ def test_user_data_sorted_serialization():
     font.write(stream, 0)
     serialized = stream.getvalue().decode()
 
-    # Check that keys appear in alphabetical order
+    # Check that keys appear in insertion order (not alphabetical)
+    z_pos = serialized.find('"z.last"')
     a_pos = serialized.find('"a.first"')
     m_pos = serialized.find('"m.middle"')
-    z_pos = serialized.find('"z.last"')
 
     assert (
-        a_pos < m_pos < z_pos
-    ), f"Keys not in alphabetical order: a={a_pos}, m={m_pos}, z={z_pos}"
-
-    # Also check direct orjson serialization with sorted keys
-    sorted_json = orjson.dumps(font.user_data, option=orjson.OPT_SORT_KEYS)
-    assert b'"a.first"' in sorted_json
-    assert sorted_json.index(b'"a.first"') < sorted_json.index(b'"m.middle"')
-    assert sorted_json.index(b'"m.middle"') < sorted_json.index(b'"z.last"')
+        z_pos < a_pos < m_pos
+    ), f"Keys not in insertion order: z={z_pos}, a={a_pos}, m={m_pos}"
 
 
 def test_user_data_nested_sorted_serialization():
@@ -266,7 +259,7 @@ def test_user_data_nested_sorted_serialization():
     )
 
     # Check that both outer and inner keys are sorted
-    sorted_json = orjson.dumps(node.user_data, option=orjson.OPT_SORT_KEYS)
+    sorted_json = orjson.dumps(node.format_specific, option=orjson.OPT_SORT_KEYS)
     decoded = orjson.loads(sorted_json)
 
     # Verify outer keys are alphabetically sorted
@@ -289,11 +282,11 @@ def test_tracked_dict_deeply_nested():
     from context.BaseObject import TrackedDict
 
     # Verify all levels are TrackedDict
-    assert isinstance(font.user_data["level1"], TrackedDict)
-    assert isinstance(font.user_data["level1"]["level2"], TrackedDict)
+    assert isinstance(font.format_specific["level1"], TrackedDict)
+    assert isinstance(font.format_specific["level1"]["level2"], TrackedDict)
 
     # Modify deep nested value
-    font.user_data["level1"]["level2"]["level3"] = "modified"
+    font.format_specific["level1"]["level2"]["level3"] = "modified"
 
     assert font.is_dirty(DIRTY_FILE_SAVING)
 
@@ -307,11 +300,11 @@ def test_tracked_dict_list_with_dicts():
     from context.BaseObject import TrackedDict
 
     # Verify dicts in list are TrackedDict
-    assert isinstance(font.user_data["items"][0], TrackedDict)
-    assert isinstance(font.user_data["items"][1], TrackedDict)
+    assert isinstance(font.format_specific["items"][0], TrackedDict)
+    assert isinstance(font.format_specific["items"][1], TrackedDict)
 
     # Modify dict inside list
-    font.user_data["items"][0]["name"] = "modified"
+    font.format_specific["items"][0]["name"] = "modified"
 
     assert font.is_dirty(DIRTY_FILE_SAVING)
 
@@ -323,16 +316,16 @@ def test_tracked_dict_add_nested_dict():
     font.mark_clean(DIRTY_FILE_SAVING)
 
     # Add a new nested dict
-    font.user_data["new_nested"] = {"inner": "data"}
+    font.format_specific["new_nested"] = {"inner": "data"}
 
     from context.BaseObject import TrackedDict
 
-    assert isinstance(font.user_data["new_nested"], TrackedDict)
+    assert isinstance(font.format_specific["new_nested"], TrackedDict)
     assert font.is_dirty(DIRTY_FILE_SAVING)
 
     # Modify the newly added nested dict
     font.mark_clean(DIRTY_FILE_SAVING)
-    font.user_data["new_nested"]["inner"] = "modified"
+    font.format_specific["new_nested"]["inner"] = "modified"
 
     assert font.is_dirty(DIRTY_FILE_SAVING)
 
@@ -346,12 +339,12 @@ def test_tracked_dict_popitem():
     assert not font.is_dirty(DIRTY_FILE_SAVING)
 
     # popitem removes and returns an arbitrary item
-    key, value = font.user_data.popitem()
+    key, value = font.format_specific.popitem()
 
     assert key in ["key1", "key2"]
     assert value in ["value1", "value2"]
     assert font.is_dirty(DIRTY_FILE_SAVING)
-    assert len(font.user_data) == 1
+    assert len(font.format_specific) == 1
 
 
 def test_tracked_dict_mixed_nested_structures():
@@ -368,13 +361,13 @@ def test_tracked_dict_mixed_nested_structures():
     from context.BaseObject import TrackedDict
 
     # Verify nested structures are TrackedDict
-    assert isinstance(font.user_data["config"], TrackedDict)
-    assert isinstance(font.user_data["config"]["options"][0], TrackedDict)
-    assert isinstance(font.user_data["data"][0], TrackedDict)
-    assert isinstance(font.user_data["data"][0]["nested"], TrackedDict)
+    assert isinstance(font.format_specific["config"], TrackedDict)
+    assert isinstance(font.format_specific["config"]["options"][0], TrackedDict)
+    assert isinstance(font.format_specific["data"][0], TrackedDict)
+    assert isinstance(font.format_specific["data"][0]["nested"], TrackedDict)
 
     # Modify deeply nested value
-    font.user_data["data"][0]["nested"]["deep"] = "modified"
+    font.format_specific["data"][0]["nested"]["deep"] = "modified"
 
     assert font.is_dirty(DIRTY_FILE_SAVING)
 
@@ -388,11 +381,11 @@ def test_tracked_dict_nested_empty_dicts():
     from context.BaseObject import TrackedDict
 
     # Empty dicts should still be TrackedDict
-    assert isinstance(font.user_data["outer"], TrackedDict)
-    assert isinstance(font.user_data["nested"]["inner"], TrackedDict)
+    assert isinstance(font.format_specific["outer"], TrackedDict)
+    assert isinstance(font.format_specific["nested"]["inner"], TrackedDict)
 
     # Adding to empty nested dict should mark dirty
-    font.user_data["nested"]["inner"]["key"] = "value"
+    font.format_specific["nested"]["inner"]["key"] = "value"
 
     assert font.is_dirty(DIRTY_FILE_SAVING)
 
@@ -406,17 +399,17 @@ def test_tracked_dict_non_string_keys():
     from context.BaseObject import TrackedDict
 
     # Nested dict with int key should be TrackedDict
-    assert isinstance(font.user_data["com.test"], TrackedDict)
-    assert font.user_data["com.test"][1] == "int_key"
-    assert font.user_data["com.test"]["2"] == "string_key"
+    assert isinstance(font.format_specific["com.test"], TrackedDict)
+    assert font.format_specific["com.test"][1] == "int_key"
+    assert font.format_specific["com.test"]["2"] == "string_key"
 
     # Modifying value with int key should mark dirty
-    font.user_data["com.test"][1] = "modified"
+    font.format_specific["com.test"][1] = "modified"
     assert font.is_dirty(DIRTY_FILE_SAVING)
 
     # Adding new int key should work
     font.mark_clean(DIRTY_FILE_SAVING)
-    font.user_data["com.test"][3] = "new_int_key"
+    font.format_specific["com.test"][3] = "new_int_key"
     assert font.is_dirty(DIRTY_FILE_SAVING)
 
     # Serialization should work with non-string keys
@@ -424,7 +417,7 @@ def test_tracked_dict_non_string_keys():
 
     # This should not raise TypeError
     serialized = orjson.dumps(
-        font.user_data, option=orjson.OPT_SORT_KEYS | orjson.OPT_NON_STR_KEYS
+        font.format_specific, option=orjson.OPT_SORT_KEYS | orjson.OPT_NON_STR_KEYS
     )
     assert serialized is not None
 

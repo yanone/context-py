@@ -63,6 +63,14 @@ The Python implementation should maintain compatibility with the babelfont-rs da
 - Interoperability with Rust-based font tools
 - Consistent data representation across platforms
 
+## Fast serialization for in-browser compilation
+
+One of the key interactions between context-py and JavaScript in the browser is the fast font compilation.
+In order to keep unloading times to a minimum, make sure that in-memory serialization using to_dict() is always
+at its optimum speed, so for instance not reordering data during serialization, while reordering data for commit diff similarity
+limited to file saving operations.
+
+
 ## Development
 
 When implementing new features or modifying data structures, always refer to the babelfont-rs Serde definitions as the source of truth for the `.babelfont` format specification.

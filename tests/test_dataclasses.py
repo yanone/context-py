@@ -4,7 +4,7 @@ from io import BytesIO
 def test_propagate_format_specific():
     a = Axis(name="Weight", tag="wght", _="Hello")
     assert a._ == "Hello"
-    assert a.user_data == "Hello"
+    assert a.format_specific == "Hello"
 
 def test_write_a_negative():
     g = Glyph(name="_test", exported=False)

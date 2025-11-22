@@ -1,5 +1,6 @@
 import functools
 import logging
+import orjson
 from datetime import datetime
 from typing import Any, Dict, List, Optional, Tuple
 
@@ -55,9 +56,7 @@ class Font(BaseObject):
             if masters and not isinstance(masters[0] if masters else None, dict):
                 masters = [m._data if hasattr(m, "_data") else m for m in masters]
             if instances and not isinstance(instances[0] if instances else None, dict):
-                instances = [
-                    i._data if hasattr(i, "_data") else i for i in instances
-                ]
+                instances = [i._data if hasattr(i, "_data") else i for i in instances]
 
             data = {
                 "upm": upm,
@@ -70,13 +69,15 @@ class Font(BaseObject):
                 "date": date or datetime.now(),
                 "names": names or Names(),
                 "custom_opentype_values": custom_opentype_values or {},
-                "filename": filename,
                 "features": features or Features(),
                 "first_kern_groups": first_kern_groups or {},
                 "second_kern_groups": second_kern_groups or {},
             }
             data.update(kwargs)
             super().__init__(_data=data)
+
+        # Store filename as instance attribute (not serialized)
+        object.__setattr__(self, "_filename", filename)
 
         # Set up parent reference for GlyphList dirty tracking
         self.glyphs._set_parent_font(self)
@@ -103,6 +104,16 @@ class Font(BaseObject):
         self._data["upm"] = value
         if self._tracking_enabled:
             self.mark_dirty(field_name="upm")
+
+    @property
+    def filename(self):
+        """Get the filename. Not serialized to disk."""
+        return getattr(self, "_filename", None)
+
+    @filename.setter
+    def filename(self, value):
+        """Set the filename. Not serialized to disk."""
+        object.__setattr__(self, "_filename", value)
 
     @property
     def version(self):
@@ -194,9 +205,7 @@ class Font(BaseObject):
     def instances(self, value):
         """Store as dicts in _data and invalidate cache."""
         if value:
-            dict_instances = [
-                i._data if hasattr(i, "_data") else i for i in value
-            ]
+            dict_instances = [i._data if hasattr(i, "_data") else i for i in value]
             self._data["instances"] = dict_instances
         else:
             self._data["instances"] = value
@@ -414,9 +423,9 @@ class Font(BaseObject):
             if obj._dirty_fields is None:
                 object.__setattr__(obj, "_dirty_fields", {})
 
-            # LAZY: Don't convert user_data, create snapshots, or recurse!
+            # LAZY: Don't convert format_specific, create snapshots, or recurse!
             # Everything happens on-demand:
-            # - user_data → TrackedDict: on first access (tracked_getattribute)
+            # - format_specific → TrackedDict: on first access (tracked_getattribute)
             # - snapshots: on first access (tracked_getattribute)
             # - child tracking: when parent marks them clean/dirty
 
@@ -528,11 +537,11 @@ class Font(BaseObject):
         # Perform the save operation
         start_time = time.time()
         try:
-            # Disable user_data tracking during serialization for performance
+            # Disable format_specific tracking during serialization
             import context.BaseObject
 
-            old_skip_value = context.BaseObject._SKIP_USER_DATA_TRACKING
-            context.BaseObject._SKIP_USER_DATA_TRACKING = True
+            old_skip_value = context.BaseObject._SKIP_FORMAT_SPECIFIC_TRACKING
+            context.BaseObject._SKIP_FORMAT_SPECIFIC_TRACKING = True
 
             try:
                 convertor = Convert(filename)
@@ -542,7 +551,7 @@ class Font(BaseObject):
                 print(f"  ⏱️ File write time: {save_duration:.3f}s")
             finally:
                 # Restore the original value
-                context.BaseObject._SKIP_USER_DATA_TRACKING = old_skip_value
+                context.BaseObject._SKIP_FORMAT_SPECIFIC_TRACKING = old_skip_value
 
             # Update the stored filename after successful save
             self.filename = filename
@@ -612,8 +621,44 @@ class Font(BaseObject):
             # Re-raise the original error
             raise
 
+    def _convert_keys_to_str(self, obj, sort=True, path=None):
+        """Recursively convert dict keys to strings for JSON.
+
+        Args:
+            obj: Object to convert
+            sort: If True, sorts dict keys alphabetically
+                  For byte-identical output, use sort=False to preserve
+                  field order from to_dict() methods
+            path: Current field path
+        """
+        if isinstance(obj, dict):
+            items = (
+                sorted(obj.items(), key=lambda x: str(x[0]))
+                if sort
+                else obj.items()
+            )
+            return {
+                str(k): self._convert_keys_to_str(
+                    v,
+                    sort=sort,
+                    path=f"{path}.{k}" if path else str(k),
+                )
+                for k, v in items
+            }
+        elif isinstance(obj, list):
+            return [
+                self._convert_keys_to_str(item, sort=sort, path=path) for item in obj
+            ]
+        else:
+            return obj
+
     def write(self, stream, indent=0):
-        """Override write to sync cached objects to _data before serialization."""
+        """Override write to sync cached objects before serialization.
+
+        This method ensures field ordering matches babelfont-rs for
+        git diff compatibility. The canonical field order follows the
+        Rust Font struct definition.
+        """
         # Sync masters: convert cached Master objects back to dicts
         if self._masters_cache is not None:
             self._data["masters"] = [m.to_dict() for m in self._masters_cache]
@@ -622,8 +667,157 @@ class Font(BaseObject):
         if self._instances_cache is not None:
             self._data["instances"] = [i.to_dict() for i in self._instances_cache]
 
-        # Call parent write()
-        super().write(stream, indent)
+        # Reorder _data to match babelfont-rs Font struct field order
+        # This ensures consistent file output for clean git diffs
+        # Field order from:
+        # github.com/simoncozens/babelfont-rs/blob/main/src/font.rs
+        ordered_data = {}
+        field_order = [
+            "upm",
+            "version",
+            "axes",
+            "instances",
+            "masters",
+            "glyphs",
+            "note",
+            "date",
+            "names",
+            "custom_ot_values",
+            "variation_sequences",
+            "features",
+            "first_kern_groups",
+            "second_kern_groups",
+            "format_specific",
+            "source",
+        ]
+
+        # Add fields in canonical order (skip if not present or empty)
+        for key in field_order:
+            if key in self._data:
+                value = self._data[key]
+                # Always serialize these fields even if empty
+                always_include = {"note", "date", "names", "features"}
+                # Skip empty (match babelfont-rs skip_serializing_if)
+                if (
+                    key in always_include
+                    or value
+                    or isinstance(value, (int, float, bool))
+                ):
+                    ordered_data[key] = value
+
+        # Add any remaining fields not in the canonical order
+        skip_keys = {
+            "_dirty_flags",
+            "_dirty_fields",
+            "_parent_ref",
+            "_format_specific_snapshot",
+            "_skip_format_specific_check",
+            "_tracking_enabled",
+            "filename",  # Python-specific, not in babelfont-rs
+        }
+        for key, value in self._data.items():
+            if key not in ordered_data and key not in skip_keys:
+                if value or isinstance(value, (int, float, bool)):
+                    ordered_data[key] = value
+
+        # CRITICAL: Convert GlyphList to list BEFORE orjson serialization
+        # orjson NEVER calls default() for dict subclasses!
+        # GlyphList is a dict subclass, so it would be serialized as a dict
+        # unless we convert it here to a list first.
+        # We need to use self.glyphs (the property) not _data["glyphs"]
+        from .Glyph import GlyphList
+
+        if "glyphs" in ordered_data:
+            # Get the actual GlyphList from the property
+            glyphs = self.glyphs
+            if isinstance(glyphs, GlyphList):
+                ordered_data["glyphs"] = [glyph.to_dict() for glyph in glyphs]
+
+        # Filter empty Names fields for byte-identical output
+        # babelfont-rs uses skip_serializing_if = "I18NDictionary::is_empty"
+        # So we only include non-empty name fields
+        if "names" in ordered_data:
+            names_data = ordered_data["names"]
+            if hasattr(names_data, "to_dict"):
+                names_data = names_data.to_dict()
+            # Filter out empty I18NDictionary objects
+            from .BaseObject import I18NDictionary
+
+            filtered_names = {}
+            for key, value in names_data.items():
+                if key.startswith("_"):
+                    continue
+                # Skip empty I18NDictionary objects
+                if isinstance(value, (dict, I18NDictionary)):
+                    if value and len(value) > 0:
+                        # Convert I18NDictionary to dict if needed
+                        if isinstance(value, I18NDictionary):
+                            filtered_names[key] = dict(value)
+                        else:
+                            filtered_names[key] = value
+                elif value:  # Non-dict, non-empty values
+                    filtered_names[key] = value
+            ordered_data["names"] = filtered_names
+
+        # Convert all dict keys to strings for JSON compatibility
+        # Don't sort the top-level dict (it's already ordered), only nested dicts
+        ordered_data = self._convert_keys_to_str(ordered_data, sort=False)
+
+        # Temporarily replace _data with ordered version
+        original_data = self._data
+        self._data = ordered_data
+
+        try:
+            # Call parent write() - but note that BaseObject.write()
+            # filters empty values. For Font, we want to preserve
+            # empty strings like note="" to match babelfont-rs output.
+            # So we use orjson directly instead of super().write()
+            json_bytes = orjson.dumps(
+                ordered_data,
+                option=orjson.OPT_INDENT_2,
+                default=self._default_serializer,
+            )
+            stream.write(json_bytes)
+            # Note: babelfont-rs does NOT add trailing newline
+        finally:
+            # Restore original _data (preserves TrackedDict)
+            self._data = original_data
+
+    def _default_serializer(self, obj):
+        """Custom serializer for orjson to handle special types."""
+        import datetime
+        from .Glyph import GlyphList
+
+        if isinstance(obj, datetime.datetime):
+            # Format with timezone in ISO 8601 format (e.g., "2024-03-23T23:08:27+01:00")
+            # Use isoformat() to get ISO 8601 with timezone
+            iso_str = obj.isoformat()
+            # Remove microseconds if present (babelfont-rs doesn't use them)
+            if "." in iso_str:
+                # Split on dot, rejoin without microseconds
+                parts = iso_str.split(".")
+                # Keep everything before dot and timezone after microseconds
+                if "+" in parts[1]:
+                    iso_str = parts[0] + "+" + parts[1].split("+")[1]
+                elif "-" in parts[1]:
+                    iso_str = parts[0] + "-" + parts[1].split("-")[1]
+                else:
+                    # No timezone in second part, just remove microseconds
+                    iso_str = parts[0]
+            return iso_str
+        elif isinstance(obj, GlyphList):
+            # Serialize GlyphList as list of glyph dicts (not the _data dict)
+            return [glyph.to_dict() for glyph in obj]
+        elif hasattr(obj, "to_dict") and not hasattr(obj, "_data"):
+            # Only call to_dict if no _data (avoid double conversion)
+            return obj.to_dict()
+        elif hasattr(obj, "_data"):
+            # For objects with _data, check if it's a list-like container
+            if hasattr(obj, "__iter__") and not isinstance(obj._data, dict):
+                # It's a list-like container, serialize as list
+                return [self._default_serializer(item) for item in obj]
+            return obj._data
+        raise TypeError(f"Object of type {type(obj)} not JSON serializable")
 
     def to_dict(self):
         """

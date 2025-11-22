@@ -101,22 +101,22 @@ class Node(BaseObject):
         self._set_field("type", value)
 
     def write(self, stream, _indent):
-        # Check if there's any user data to write
-        if not self.user_data:
+        # Check if there's any format-specific data to write
+        if not self.format_specific:
             node_str = '[%i,%i,"%s"]' % (self.x, self.y, self.type)
             stream.write(node_str.encode())
         else:
-            # Serialize user_data as JSON string with sorted keys
+            # Serialize format_specific as JSON string with sorted keys
             # OPT_NON_STR_KEYS: Allow non-string dict keys
-            userdata_str = orjson.dumps(
-                self.user_data,
+            formatspecific_str = orjson.dumps(
+                self.format_specific,
                 option=orjson.OPT_SORT_KEYS | orjson.OPT_NON_STR_KEYS,
             ).decode()
             node_str = '[%i,%i,"%s",%s]' % (
                 self.x,
                 self.y,
                 self.type,
-                userdata_str,
+                formatspecific_str,
             )
             stream.write(node_str.encode())
 

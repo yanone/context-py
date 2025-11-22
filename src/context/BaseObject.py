@@ -19,8 +19,8 @@ DIRTY_CANVAS_RENDER = "canvas_render"
 DIRTY_UNDO = "undo"
 DIRTY_COMPILE = "compile"
 
-# Global flag to skip user_data tracking during serialization
-_SKIP_USER_DATA_TRACKING = False
+# Global flag to skip format_specific tracking during serialization
+_SKIP_FORMAT_SPECIFIC_TRACKING = False
 
 
 class TrackedDict(dict):
@@ -80,10 +80,10 @@ class TrackedDict(dict):
                 and owner._tracking_enabled
             ):
                 owner.mark_dirty(
-                    DIRTY_FILE_SAVING, field_name="user_data", propagate=True
+                    DIRTY_FILE_SAVING, field_name="format_specific", propagate=True
                 )
                 owner.mark_dirty(
-                    DIRTY_CANVAS_RENDER, field_name="user_data", propagate=True
+                    DIRTY_CANVAS_RENDER, field_name="format_specific", propagate=True
                 )
 
     def __setitem__(self, key, value):
@@ -355,10 +355,16 @@ class BaseObject:
         """
         # Initialize _data dict - this is the ONLY data storage
         if _data is not None:
+            # Backwards compatibility: map "_" to "format_specific"
+            if "_" in _data and "format_specific" not in _data:
+                _data["format_specific"] = _data.pop("_")
             object.__setattr__(self, "_data", _data)
             data_to_validate = _data
         else:
             # Build _data from kwargs
+            # Backwards compatibility: map "_" to "format_specific"
+            if "_" in kwargs and "format_specific" not in kwargs:
+                kwargs["format_specific"] = kwargs.pop("_")
             object.__setattr__(self, "_data", kwargs)
             data_to_validate = kwargs
 
@@ -387,29 +393,38 @@ class BaseObject:
         object.__setattr__(self, "_dirty_flags", None)
         object.__setattr__(self, "_dirty_fields", None)
         object.__setattr__(self, "_parent_ref", None)
-        object.__setattr__(self, "_user_data_snapshot", None)
-        object.__setattr__(self, "_skip_user_data_check", False)
+        object.__setattr__(self, "_format_specific_snapshot", None)
+        object.__setattr__(self, "_skip_format_specific_check", False)
 
     @property
-    def user_data(self):
+    def format_specific(self):
         """
         Optional dictionary for format-specific data.
-        Stored as "_" in JSON serialization.
+        Stored as "format_specific" in JSON serialization.
         """
         # Use object.__getattribute__ to avoid triggering tracked_getattribute
         _data = object.__getattribute__(self, "_data")
-        return _data.get("_", {})
+        return _data.get("format_specific", {})
 
-    @user_data.setter
-    def user_data(self, value):
-        self._data["_"] = value
+    @format_specific.setter
+    def format_specific(self, value):
+        self._data["format_specific"] = value
         if hasattr(self, "mark_dirty") and self._tracking_enabled:
             self.mark_dirty()
 
     @property
+    def user_data(self):
+        """Deprecated alias for format_specific. Use format_specific instead."""
+        return self.format_specific
+    
+    @user_data.setter
+    def user_data(self, value):
+        self.format_specific = value
+
+    @property
     def _(self):
-        """Alias for user_data."""
-        return self.user_data
+        """Deprecated alias for format_specific. Use format_specific instead."""
+        return self.format_specific
 
     @_.setter
     def _(self, value):
@@ -593,7 +608,7 @@ class BaseObject:
             object.__setattr__(self, "_dirty_flags", {})
         if self._dirty_fields is None:
             object.__setattr__(self, "_dirty_fields", {})
-        # Enable tracking (needed for user_data change detection)
+        # Enable tracking (needed for format_specific change detection)
         if hasattr(self, "_tracking_enabled") and not self._tracking_enabled:
             object.__setattr__(self, "_tracking_enabled", True)
 
@@ -611,14 +626,14 @@ class BaseObject:
         # This makes subsequent to_dict() calls instant
         if build_cache and context == DIRTY_FILE_SAVING:
             # Temporarily disable tracking during cache build for speed
-            old_skip = _SKIP_USER_DATA_TRACKING
-            globals()["_SKIP_USER_DATA_TRACKING"] = True
+            old_skip = _SKIP_FORMAT_SPECIFIC_TRACKING
+            globals()["_SKIP_FORMAT_SPECIFIC_TRACKING"] = True
             try:
                 # Build cache without tracking overhead
                 cache_dict = self._to_dict_no_cache()
                 object.__setattr__(self, "_dict_cache", cache_dict)
             finally:
-                globals()["_SKIP_USER_DATA_TRACKING"] = old_skip
+                globals()["_SKIP_FORMAT_SPECIFIC_TRACKING"] = old_skip
 
         if recursive:
             self._mark_children_clean(context, build_cache=build_cache)
@@ -662,52 +677,52 @@ class BaseObject:
         """
         pass
 
-    def _snapshot_user_data(self):
-        """Create a snapshot of user_data for change detection."""
-        if hasattr(self, "user_data") and self.user_data:
+    def _snapshot_format_specific(self):
+        """Create a snapshot of format_specific for change detection."""
+        if hasattr(self, "format_specific") and self.format_specific:
             # Serialize with sorted keys for consistent comparison
             # OPT_NON_STR_KEYS: Allow non-string dict keys
             snapshot = orjson.dumps(
-                self.user_data,
+                self.format_specific,
                 option=orjson.OPT_SORT_KEYS | orjson.OPT_NON_STR_KEYS,
             )
-            object.__setattr__(self, "_user_data_snapshot", snapshot)
+            object.__setattr__(self, "_format_specific_snapshot", snapshot)
         else:
-            object.__setattr__(self, "_user_data_snapshot", None)
+            object.__setattr__(self, "_format_specific_snapshot", None)
 
-    def _check_user_data_changed(self):
+    def _check_format_specific_changed(self):
         """
-        Check if user_data has changed since last snapshot.
+        Check if format_specific has changed since last snapshot.
         Returns True if changed, False otherwise.
         Marks object dirty if changes detected.
         """
         # Use object.__getattribute__ to avoid recursion
         try:
-            user_data = object.__getattribute__(self, "user_data")
+            format_specific = object.__getattribute__(self, "format_specific")
         except AttributeError:
             return False
 
-        # Skip if user_data is empty (optimization)
-        if not user_data:
+        # Skip if format_specific is empty (optimization)
+        if not format_specific:
             return False
 
         # Get current serialized state
         # OPT_NON_STR_KEYS: Allow non-string dict keys (converted to strings)
         current = orjson.dumps(
-            user_data,
+            format_specific,
             option=orjson.OPT_SORT_KEYS | orjson.OPT_NON_STR_KEYS,
         )
 
         # Compare with snapshot
         try:
-            old_snapshot = object.__getattribute__(self, "_user_data_snapshot")
+            old_snapshot = object.__getattribute__(self, "_format_specific_snapshot")
         except AttributeError:
             old_snapshot = None
 
         # Lazy initialization: if no snapshot exists yet, create one now
         # This avoids creating snapshots during initialization for all objects
         if old_snapshot is None:
-            object.__setattr__(self, "_user_data_snapshot", current)
+            object.__setattr__(self, "_format_specific_snapshot", current)
             return False  # First access, not a change
 
         changed = current != old_snapshot
@@ -724,14 +739,16 @@ class BaseObject:
 
             if tracking_enabled:
                 mark_dirty = object.__getattribute__(self, "mark_dirty")
-                mark_dirty(DIRTY_FILE_SAVING, field_name="user_data", propagate=True)
+                mark_dirty(
+                    DIRTY_FILE_SAVING, field_name="format_specific", propagate=True
+                )
                 mark_dirty(
                     DIRTY_CANVAS_RENDER,
-                    field_name="user_data",
+                    field_name="format_specific",
                     propagate=True,
                 )
                 # Update snapshot after marking dirty
-                object.__setattr__(self, "_user_data_snapshot", current)
+                object.__setattr__(self, "_format_specific_snapshot", current)
 
         return changed
 
@@ -804,27 +821,29 @@ class BaseObject:
 
         def tracked_getattribute(self, name):
             """
-            Override getattribute to check for nested user_data changes.
-            When user_data is accessed, check if nested content changed.
+            Override getattribute to check for nested format_specific changes.
+            When format_specific is accessed, check if nested content changed.
             Also lazily converts regular dict to TrackedDict on first access.
             """
             # Get the attribute using default mechanism
             value = object.__getattribute__(self, name)
 
-            # Early exit: Only process user_data (fastest check first)
-            # This skips tracking for ALL other attributes including private ones
-            if name != "user_data":
+            # Early exit: Only process format_specific/user_data
+            # This skips tracking for ALL other attributes
+            if name not in ("format_specific", "user_data"):
                 return value
 
             # Skip tracking during serialization (performance optimization)
             import context.BaseObject
 
-            if context.BaseObject._SKIP_USER_DATA_TRACKING:
+            if context.BaseObject._SKIP_FORMAT_SPECIFIC_TRACKING:
                 return value
 
-            # Handle user_data access (both empty and non-empty)
+            # Handle format_specific access (both empty and non-empty)
             try:
-                skip_check = object.__getattribute__(self, "_skip_user_data_check")
+                skip_check = object.__getattribute__(
+                    self, "_skip_format_specific_check"
+                )
                 if skip_check:
                     return value
 
@@ -836,11 +855,13 @@ class BaseObject:
                 if tracking_enabled:
                     # Lazy conversion: convert to TrackedDict on first access
                     # Convert both empty and non-empty dicts for consistency
-                    if isinstance(value, dict) and not isinstance(value, TrackedDict):
+                    if isinstance(value, dict) and not isinstance(
+                        value, TrackedDict
+                    ):
                         tracked = TrackedDict(owner=self)
                         if value:  # Only update if non-empty
                             tracked.update(value)
-                        object.__setattr__(self, "user_data", tracked)
+                        object.__setattr__(self, "format_specific", tracked)
                         value = tracked
 
                     # Check for nested changes (only if non-empty TrackedDict)

@@ -38,7 +38,7 @@ def comprehensive_font(tmp_path):
     font.names.manufacturerURL = {"en": "https://example.com"}
 
     # Add format-specific data to font
-    font.user_data = {"com.test": {"version": "1.0", "data": [1, 2, 3]}}
+    font.format_specific = {"com.test": {"version": "1.0", "data": [1, 2, 3]}}
 
     # Add axes (for variable font)
     axis_weight = Axis(
@@ -266,9 +266,9 @@ def compare_fonts(font1, font2, path="font"):
             differences.append(f"{path}.names.{name_field}: {val1} != {val2}")
 
     # Compare format-specific
-    if font1.user_data != font2.user_data:
+    if font1.format_specific != font2.format_specific:
         differences.append(
-            f"{path}.user_data: " f"{font1.user_data} != {font2.user_data}"
+            f"{path}.format_specific: " f"{font1.format_specific} != {font2.format_specific}"
         )
 
     # Compare axes
@@ -282,10 +282,10 @@ def compare_fonts(font1, font2, path="font"):
             val2 = getattr(axis2, attr)
             if val1 != val2:
                 differences.append(f"{path}.axes[{i}].{attr}: {val1} != {val2}")
-        if axis1.user_data != axis2.user_data:
+        if axis1.format_specific != axis2.format_specific:
             differences.append(
-                f"{path}.axes[{i}].user_data: "
-                f"{axis1.user_data} != {axis2.user_data}"
+                f"{path}.axes[{i}].format_specific: "
+                f"{axis1.format_specific} != {axis2.format_specific}"
             )
 
     # Compare instances
@@ -304,10 +304,10 @@ def compare_fonts(font1, font2, path="font"):
                 f"{path}.instances[{i}].location: "
                 f"{inst1.location} != {inst2.location}"
             )
-        if inst1.user_data != inst2.user_data:
+        if inst1.format_specific != inst2.format_specific:
             differences.append(
-                f"{path}.instances[{i}].user_data: "
-                f"{inst1.user_data} != {inst2.user_data}"
+                f"{path}.instances[{i}].format_specific: "
+                f"{inst1.format_specific} != {inst2.format_specific}"
             )
 
     # Compare masters
@@ -321,10 +321,10 @@ def compare_fonts(font1, font2, path="font"):
             val2 = getattr(master2, attr)
             if val1 != val2:
                 differences.append(f"{path}.masters[{i}].{attr}: {val1} != {val2}")
-        if master1.user_data != master2.user_data:
+        if master1.format_specific != master2.format_specific:
             differences.append(
-                f"{path}.masters[{i}].user_data: "
-                f"{master1.user_data} != {master2.user_data}"
+                f"{path}.masters[{i}].format_specific: "
+                f"{master1.format_specific} != {master2.format_specific}"
             )
 
         # Compare master guides
@@ -384,9 +384,9 @@ def compare_fonts(font1, font2, path="font"):
             if val1 != val2:
                 differences.append(f"{gpath}.{attr}: {val1} != {val2}")
 
-        if glyph1.user_data != glyph2.user_data:
+        if glyph1.format_specific != glyph2.format_specific:
             differences.append(
-                f"{gpath}.user_data: " f"{glyph1.user_data} != {glyph2.user_data}"
+                f"{gpath}.format_specific: " f"{glyph1.format_specific} != {glyph2.format_specific}"
             )
 
         # Compare layers
@@ -404,9 +404,9 @@ def compare_fonts(font1, font2, path="font"):
                 if val1 != val2:
                     differences.append(f"{lpath}.{attr}: {val1} != {val2}")
 
-            if layer1.user_data != layer2.user_data:
+            if layer1.format_specific != layer2.format_specific:
                 differences.append(
-                    f"{lpath}.user_data: " f"{layer1.user_data} != {layer2.user_data}"
+                    f"{lpath}.format_specific: " f"{layer1.format_specific} != {layer2.format_specific}"
                 )
 
             # Compare guides
@@ -446,11 +446,11 @@ def compare_fonts(font1, font2, path="font"):
                     if val1 != val2:
                         differences.append(f"{spath}.{attr}: {val1} != {val2}")
 
-                if shape1.user_data != shape2.user_data:
+                if shape1.format_specific != shape2.format_specific:
                     differences.append(
-                        f"{spath}.user_data: "
-                        f"{shape1.user_data} != "
-                        f"{shape2.user_data}"
+                        f"{spath}.format_specific: "
+                        f"{shape1.format_specific} != "
+                        f"{shape2.format_specific}"
                     )
 
                 # Compare nodes
@@ -468,11 +468,11 @@ def compare_fonts(font1, font2, path="font"):
                             val2 = getattr(node2, attr)
                             if val1 != val2:
                                 differences.append(f"{npath}.{attr}: {val1} != {val2}")
-                        if node1.user_data != node2.user_data:
+                        if node1.format_specific != node2.format_specific:
                             differences.append(
-                                f"{npath}.user_data: "
-                                f"{node1.user_data} != "
-                                f"{node2.user_data}"
+                                f"{npath}.format_specific: "
+                                f"{node1.format_specific} != "
+                                f"{node2.format_specific}"
                             )
 
             # Compare anchors
@@ -489,11 +489,11 @@ def compare_fonts(font1, font2, path="font"):
                     val2 = getattr(anchor2, attr)
                     if val1 != val2:
                         differences.append(f"{apath}.{attr}: {val1} != {val2}")
-                if anchor1.user_data != anchor2.user_data:
+                if anchor1.format_specific != anchor2.format_specific:
                     differences.append(
-                        f"{apath}.user_data: "
-                        f"{anchor1.user_data} != "
-                        f"{anchor2.user_data}"
+                        f"{apath}.format_specific: "
+                        f"{anchor1.format_specific} != "
+                        f"{anchor2.format_specific}"
                     )
 
     return differences
@@ -556,12 +556,11 @@ def test_field_aliases_in_files(comprehensive_font, tmp_path):
     font_path = tmp_path / "alias_test.babelfont"
     comprehensive_font.save(str(font_path))
 
-    # Check that master guides use 'pos' in the file
-    info_file = font_path / "info.json"
-    with open(info_file, "r") as f:
-        info_data = json.load(f)
+    # Check that master guides use 'pos' in the single JSON file
+    with open(font_path, "r") as f:
+        font_data = json.load(f)
 
-    master_data = info_data["masters"][0]
+    master_data = font_data["masters"][0]
     if master_data.get("guides"):
         guide_data = master_data["guides"][0]
         assert "pos" in guide_data, "Master guides should use 'pos' in file"
@@ -570,11 +569,8 @@ def test_field_aliases_in_files(comprehensive_font, tmp_path):
         ), "Master guides should not use 'position' in file"
 
     # Check that layer guides use 'pos' in the file
-    glyph_file = font_path / "glyphs" / "A_.nfsglyph"
-    with open(glyph_file, "r") as f:
-        layers_data = json.load(f)
-
-    layer_data = layers_data[0]
+    glyph_data = font_data["glyphs"][0]
+    layer_data = glyph_data["layers"][0]
     if layer_data.get("guides"):
         guide_data = layer_data["guides"][0]
         assert "pos" in guide_data, "Layer guides should use 'pos' in file"
@@ -597,40 +593,40 @@ def testuser_data_roundtrip(comprehensive_font, tmp_path):
     font_loaded = load(str(font_path))
 
     # Check font level
-    assert font_loaded.user_data == comprehensive_font.user_data
+    assert font_loaded.format_specific == comprehensive_font.format_specific
 
     # Check axis level
-    assert font_loaded.axes[0].user_data == {"com.test": "weight-data"}
+    assert font_loaded.axes[0].format_specific == {"com.test": "weight-data"}
 
     # Check instance level
-    assert font_loaded.instances[0].user_data == {"com.test": "instance-metadata"}
+    assert font_loaded.instances[0].format_specific == {"com.test": "instance-metadata"}
 
     # Check master level
-    assert font_loaded.masters[0].user_data == {"com.test": {"master": "data"}}
+    assert font_loaded.masters[0].format_specific == {"com.test": {"master": "data"}}
 
     # Check glyph level
     glyph_a = next(g for g in font_loaded.glyphs if g.name == "A")
-    assert glyph_a.user_data == {"com.test": {"glyph": "metadata"}}
+    assert glyph_a.format_specific == {"com.test": {"glyph": "metadata"}}
 
     # Check layer level
-    assert glyph_a.layers[0].user_data == {"com.test": "layer-data"}
+    assert glyph_a.layers[0].format_specific == {"com.test": "layer-data"}
 
     # Check shape level
     shape = glyph_a.layers[0].shapes[0]
-    assert shape.user_data == {"com.test": "shape-metadata"}
+    assert shape.format_specific == {"com.test": "shape-metadata"}
 
     # Check node level (second node has formatspecific)
     node = glyph_a.layers[0].shapes[0].nodes[1]
-    assert node.user_data == {"com.test": "node-data"}
+    assert node.format_specific == {"com.test": "node-data"}
 
     # Check anchor level
     anchor = glyph_a.layers[0].anchors[0]
-    assert anchor.user_data == {"com.test": "anchor-data"}
+    assert anchor.format_specific == {"com.test": "anchor-data"}
 
     # Check component level
     glyph_aacute = next(g for g in font_loaded.glyphs if g.name == "Aacute")
     component = glyph_aacute.layers[0].shapes[0]
-    assert component.user_data == {"com.test": "component-data"}
+    assert component.format_specific == {"com.test": "component-data"}
 
 
 def test_node_serialization_formats(tmp_path):
@@ -667,37 +663,33 @@ def test_node_serialization_formats(tmp_path):
     font_path = tmp_path / "node_format_test.babelfont"
     font.save(str(font_path))
 
-    # Check file format
-    glyph_file = font_path / "glyphs" / "test.nfsglyph"
-    with open(glyph_file, "r") as f:
-        layers_data = json.load(f)
+    # Check file format - single JSON file now
+    with open(font_path, "r") as f:
+        font_data = json.load(f)
 
-    nodes_data = layers_data[0]["shapes"][0]["nodes"]
-    assert len(nodes_data[0]) == 3, "Node without formatspecific should be 3-element"
-    assert len(nodes_data[1]) == 4, "Node with formatspecific should be 4-element"
-    assert len(nodes_data[2]) == 3, "Node without formatspecific should be 3-element"
+    nodes_data = font_data["glyphs"][0]["layers"][0]["shapes"][0]["nodes"]
+    assert len(nodes_data[0]) == 3, "Node without user_data should be 3-element"
+    assert len(nodes_data[1]) == 4, "Node with user_data should be 4-element"
+    assert len(nodes_data[2]) == 3, "Node without user_data should be 3-element"
 
     # Load back and verify
     font_loaded = load(str(font_path))
     glyph_loaded = next(g for g in font_loaded.glyphs if g.name == "test")
     nodes_loaded = glyph_loaded.layers[0].shapes[0].nodes
 
-    assert nodes_loaded[0].user_data == {}
-    assert nodes_loaded[1].user_data == {"key": "value"}
-    assert nodes_loaded[2].user_data == {}
+    assert nodes_loaded[0].format_specific == {}
+    assert nodes_loaded[1].format_specific == {"key": "value"}
+    assert nodes_loaded[2].format_specific == {}
 
 
 def test_save_without_tracking_identical(comprehensive_font, tmp_path):
-    """Test that saving produces identical results with or without tracking.
+    """Verify that fonts saved with and without tracking are identical.
 
-    This ensures that initialize_dirty_tracking() doesn't affect serialization.
-    We load the same font twice: once with tracking (via load()) and once
+    This tests that the dirty tracking system doesn't affect serialization.
+    We create identical fonts - one with tracking enabled, one explicitly
     without (by temporarily bypassing initialization), then save both and
     verify the output files are identical.
     """
-    import context
-    from context import Font
-
     # First: Save the comprehensive font (which has tracking enabled)
     path_original = tmp_path / "original.babelfont"
     comprehensive_font.save(str(path_original))
@@ -717,55 +709,15 @@ def test_save_without_tracking_identical(comprehensive_font, tmp_path):
     font_without_tracking.save(str(path_no_tracking))
 
     # Fourth: Compare the saved files - they should be identical
-    import os
-
-    # Compare info.json files
-    with open(path_with_tracking / "info.json") as f:
+    # Both are now single JSON files
+    with open(path_with_tracking) as f:
         data_with = json.load(f)
-    with open(path_no_tracking / "info.json") as f:
+    with open(path_no_tracking) as f:
         data_without = json.load(f)
 
     assert (
         data_with == data_without
-    ), "info.json should be identical with/without tracking"
-
-    # Compare names.json files
-    with open(path_with_tracking / "names.json") as f:
-        names_with = json.load(f)
-    with open(path_no_tracking / "names.json") as f:
-        names_without = json.load(f)
-
-    assert names_with == names_without, "names.json should be identical"
-
-    # Compare features.fea if present
-    features_with = path_with_tracking / "features.fea"
-    features_without = path_no_tracking / "features.fea"
-    if features_with.exists() and features_without.exists():
-        assert (
-            features_with.read_text() == features_without.read_text()
-        ), "features.fea should be identical"
-
-    # Compare glyph files
-    glyphs_dir_with = path_with_tracking / "glyphs"
-    glyphs_dir_without = path_no_tracking / "glyphs"
-
-    glyph_files_with = sorted(os.listdir(glyphs_dir_with))
-    glyph_files_without = sorted(os.listdir(glyphs_dir_without))
-
-    assert (
-        glyph_files_with == glyph_files_without
-    ), "Should have same glyph files with/without tracking"
-
-    # Compare each glyph file
-    for glyph_file in glyph_files_with:
-        with open(glyphs_dir_with / glyph_file) as f:
-            glyph_data_with = json.load(f)
-        with open(glyphs_dir_without / glyph_file) as f:
-            glyph_data_without = json.load(f)
-
-        assert (
-            glyph_data_with == glyph_data_without
-        ), f"Glyph file {glyph_file} should be identical with/without tracking"
+    ), "Font JSON should be identical with/without tracking"
 
     # Finally: Load both saved versions and verify functionally identical
     font_loaded_with = load(str(path_with_tracking))

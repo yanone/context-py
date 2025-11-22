@@ -298,14 +298,12 @@ class Master(BaseObject):
     @classmethod
     def from_dict(cls, data, _copy=True, _validate=True):
         """Create Master from dictionary, handling guides and kerning."""
-        from .Guide import Guide
-
         # Make a copy to avoid modifying the input data (unless loading from disk)
         if _copy:
             data = data.copy()
 
-        # Extract guides if present
-        guides_data = data.pop("guides", [])
+        # DON'T pop guides - let BaseObject.from_dict() preserve field order
+        # The guides property getter will convert them to Guide objects lazily
 
         # Kerning keys should already be in string format "a//b" for serialization
         # The kerning getter will convert them to tuples for API access
@@ -318,12 +316,10 @@ class Master(BaseObject):
         elif "name" in data and isinstance(data["name"], str):
             data["name"] = I18NDictionary.with_default(data["name"])
 
-        # Create master with simple fields
+        # Create master with all fields including guides
         master = super(Master, cls).from_dict(data, _validate=_validate)
 
-        # Restore guides (setter converts to dicts, parent set lazily)
-        master.guides = [
-            Guide.from_dict(g, _copy=False, _validate=_validate) for g in guides_data
-        ]
+        # Guides are already in _data as dicts and will be converted to
+        # Guide objects lazily by the guides property getter
 
         return master

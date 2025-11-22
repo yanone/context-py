@@ -92,12 +92,12 @@ def apply_custom_parameters(font: Font, args=None):
                 + short_instance_name
             )
             if args["instance"] in (short_instance_name, long_instance_name):
-                root = instance.user_data.get("com.glyphsapp", {})
+                root = instance.format_specific.get("com.glyphsapp", {})
                 break
         if not root:
             raise ValueError(f"Instance '{args['instance']}' not found")
     else:
-        root = font.user_data.get("com.glyphsapp", {})
+        root = font.format_specific.get("com.glyphsapp", {})
 
     for cp in root.get("customParameters", []):
         name = cp.get("name")

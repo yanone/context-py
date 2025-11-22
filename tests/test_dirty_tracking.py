@@ -443,8 +443,8 @@ class TestLoadedFontState:
         layer._tracking_enabled = False
 
         # Add user_data
-        glyph.user_data = {"test_key": "test_value", "nested": {"a": 1}}
-        layer.user_data = {"layer_key": "layer_value"}
+        glyph.format_specific = {"test_key": "test_value", "nested": {"a": 1}}
+        layer.format_specific = {"layer_key": "layer_value"}
 
         # Re-initialize dirty tracking
         simple_font.initialize_dirty_tracking()

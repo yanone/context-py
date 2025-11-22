@@ -2,54 +2,54 @@ from .BaseObject import BaseObject, I18NDictionary
 
 OPENTYPE_NAMES = [
     "copyright",
-    "familyName",
-    "preferredSubfamilyName",
-    "uniqueID",
-    "fullName",  # XXX?
+    "family_name",
+    "preferred_subfamily_name",
+    "unique_id",
+    "full_name",
     "version",
-    "postscriptName",
+    "postscript_name",
     "trademark",
     "manufacturer",
     "designer",
     "description",
-    "manufacturerURL",
-    "designerURL",
+    "manufacturer_url",
+    "designer_url",
     "license",
-    "licenseURL",
+    "license_url",
     "reserved",
-    "typographicFamily",
-    "typographicSubfamily",
-    "compatibleFullName",
-    "sampleText",
-    "postscriptCIDname",  # XXX?
-    "WWSFamilyName",
-    "WWSSubfamilyName",
+    "typographic_family",
+    "typographic_subfamily",
+    "compatible_full_name",
+    "sample_text",
+    "postscript_cid_name",
+    "wws_family_name",
+    "wws_subfamily_name",
 ]
 
 NAME_FIELDS = [
-    "familyName",
-    "styleName",
     "copyright",
-    "styleMapFamilyName",
-    "styleMapStyleName",
-    "uniqueID",
-    "fullName",
+    "family_name",
+    "preferred_subfamily_name",
+    "unique_id",
+    "full_name",
     "version",
-    "postscriptName",
+    "postscript_name",
     "trademark",
     "manufacturer",
     "designer",
     "description",
-    "manufacturerURL",
-    "designerURL",
+    "manufacturer_url",
+    "designer_url",
     "license",
-    "licenseURL",
-    "typographicFamily",
-    "typographicSubfamily",
-    "compatibleFullName",
-    "sampleText",
-    "WWSFamilyName",
-    "WWSSubfamilyName",
+    "license_url",
+    "reserved",
+    "typographic_family",
+    "typographic_subfamily",
+    "compatible_full_name",
+    "sample_text",
+    "postscript_cid_name",
+    "wws_family_name",
+    "wws_subfamily_name",
 ]
 
 
@@ -61,7 +61,7 @@ class Names(BaseObject):
         if _data is not None:
             # Convert dict values back to I18NDictionary
             for key, value in _data.items():
-                if key == "_":
+                if key == "format_specific":
                     continue
                 if isinstance(value, dict) and not isinstance(value, I18NDictionary):
                     i18n = I18NDictionary()
@@ -92,11 +92,14 @@ class Names(BaseObject):
         if name.startswith("_"):
             msg = f"'{type(self).__name__}' object has no attribute '{name}'"
             raise AttributeError(msg)
-        # Return value from _data, default to empty I18NDictionary
+        # Return value from _data, or empty I18NDictionary if field is known
+        # BUT: Don't modify _data to preserve round-trip fidelity
         value = self._data.get(name)
         if value is None and name in NAME_FIELDS:
-            value = I18NDictionary()
-            self._data[name] = value
+            # Return empty I18NDictionary but DON'T store it in _data
+            # This preserves round-trip fidelity - only non-empty fields
+            # are serialized
+            return I18NDictionary()
         return value
 
     def __setattr__(self, name, value):
@@ -116,7 +119,7 @@ class Names(BaseObject):
             "licenseURL": "licenseInfoURL",
         }
         for k, v in self._data.items():
-            if k == "_" or not v:
+            if k == "format_specific" or not v:
                 continue
             rv[ft_names.get(k, k)] = v.default_or_dict()
         return rv
@@ -165,7 +168,7 @@ class Names(BaseObject):
         if key == 19:
             return self.sampleText
         if key == 21:
-            return self.WWSFamilyName
+            return self.wws_family_name
         if key == 22:
-            return self.WWSSubfamilyName
+            return self.wws_subfamily_name
         return None
