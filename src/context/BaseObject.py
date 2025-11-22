@@ -416,7 +416,7 @@ class BaseObject:
     def user_data(self):
         """Deprecated alias for format_specific. Use format_specific instead."""
         return self.format_specific
-    
+
     @user_data.setter
     def user_data(self, value):
         self.format_specific = value
@@ -855,9 +855,7 @@ class BaseObject:
                 if tracking_enabled:
                     # Lazy conversion: convert to TrackedDict on first access
                     # Convert both empty and non-empty dicts for consistency
-                    if isinstance(value, dict) and not isinstance(
-                        value, TrackedDict
-                    ):
+                    if isinstance(value, dict) and not isinstance(value, TrackedDict):
                         tracked = TrackedDict(owner=self)
                         if value:  # Only update if non-empty
                             tracked.update(value)

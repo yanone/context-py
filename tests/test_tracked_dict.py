@@ -189,7 +189,10 @@ def test_tracked_dict_preserves_dict_interface():
     assert "key3" not in font.format_specific
     assert list(font.format_specific.keys()) == ["key1", "key2"]
     assert list(font.format_specific.values()) == ["value1", "value2"]
-    assert list(font.format_specific.items()) == [("key1", "value1"), ("key2", "value2")]
+    assert list(font.format_specific.items()) == [
+        ("key1", "value1"),
+        ("key2", "value2"),
+    ]
 
     # Test iteration
     keys = []
