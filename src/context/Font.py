@@ -633,9 +633,7 @@ class Font(BaseObject):
         """
         if isinstance(obj, dict):
             items = (
-                sorted(obj.items(), key=lambda x: str(x[0]))
-                if sort
-                else obj.items()
+                sorted(obj.items(), key=lambda x: str(x[0])) if sort else obj.items()
             )
             return {
                 str(k): self._convert_keys_to_str(
