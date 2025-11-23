@@ -184,7 +184,25 @@ class GlyphList(dict):
         self._parent_font_ref = weakref.ref(font) if font else None
 
     def __getitem__(self, key):
-        """Get glyph by name, converting dict to Glyph object if needed."""
+        """Get glyph by name or index, converting dict to Glyph if needed.
+
+        Args:
+            key: Either a string (glyph name) or an integer (index)
+
+        Returns:
+            Glyph object
+        """
+        # If key is an integer, treat it as an index
+        if isinstance(key, int):
+            # Convert to list of keys and get the key at the index
+            keys = list(self.keys())
+            if key < 0 or key >= len(keys):
+                raise IndexError(
+                    f"Glyph index {key} out of range (0-{len(keys)-1})"
+                )
+            key = keys[key]
+
+        # Get by name (key is now a string)
         value = super().__getitem__(key)
         if isinstance(value, dict):
             # Convert dict to Glyph object
@@ -201,11 +219,14 @@ class GlyphList(dict):
             super().__setitem__(key, glyph)
             return glyph
         elif isinstance(value, Glyph):
-            # Already a Glyph object - check if tracking needs to be enabled
+            # Already a Glyph object - check if tracking needs enabled
             if self._parent_font_ref:
                 font = self._parent_font_ref()
-                if font and font._tracking_enabled and not value._tracking_enabled:
-                    object.__setattr__(value, "_tracking_enabled", True)
+                if font and font._tracking_enabled:
+                    if not value._tracking_enabled:
+                        object.__setattr__(
+                            value, "_tracking_enabled", True
+                        )
         return value
 
     def append(self, thing):
