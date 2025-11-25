@@ -197,9 +197,7 @@ class GlyphList(dict):
             # Convert to list of keys and get the key at the index
             keys = list(self.keys())
             if key < 0 or key >= len(keys):
-                raise IndexError(
-                    f"Glyph index {key} out of range (0-{len(keys)-1})"
-                )
+                raise IndexError(f"Glyph index {key} out of range (0-{len(keys)-1})")
             key = keys[key]
 
         # Get by name (key is now a string)
@@ -224,9 +222,7 @@ class GlyphList(dict):
                 font = self._parent_font_ref()
                 if font and font._tracking_enabled:
                     if not value._tracking_enabled:
-                        object.__setattr__(
-                            value, "_tracking_enabled", True
-                        )
+                        object.__setattr__(value, "_tracking_enabled", True)
         return value
 
     def append(self, thing):
