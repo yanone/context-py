@@ -10,10 +10,10 @@ class Anchor(BaseObject):
             "data_type": str,
         },
         "x": {
-            "data_type": int,
+            "data_type": (int, float),
         },
         "y": {
-            "data_type": int,
+            "data_type": (int, float),
         },
     }
 

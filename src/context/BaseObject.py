@@ -85,6 +85,9 @@ class TrackedDict(dict):
                 owner.mark_dirty(
                     DIRTY_CANVAS_RENDER, field_name="format_specific", propagate=True
                 )
+                owner.mark_dirty(
+                    DIRTY_COMPILE, field_name="format_specific", propagate=True
+                )
 
     def __setitem__(self, key, value):
         # Convert nested dicts to TrackedDict (but not I18NDictionary)
@@ -564,7 +567,7 @@ class BaseObject:
 
         # If no context specified, mark for all standard contexts
         if context is None:
-            contexts = [DIRTY_FILE_SAVING, DIRTY_CANVAS_RENDER]
+            contexts = [DIRTY_FILE_SAVING, DIRTY_CANVAS_RENDER, DIRTY_COMPILE]
         else:
             contexts = [context]
 
@@ -614,9 +617,9 @@ class BaseObject:
 
         # Mark clean in this context
         if self._dirty_flags:
-            self._dirty_flags.pop(context, None)
-            # Keep as empty dict, don't set to None
-            # (None means tracking not initialized, {} means clean)
+            # Set to False instead of removing the key
+            # This preserves the context for future dirty propagation
+            self._dirty_flags[context] = False
 
         if self._dirty_fields:
             self._dirty_fields.pop(context, None)
@@ -747,6 +750,7 @@ class BaseObject:
                     field_name="format_specific",
                     propagate=True,
                 )
+                mark_dirty(DIRTY_COMPILE, field_name="format_specific", propagate=True)
                 # Update snapshot after marking dirty
                 object.__setattr__(self, "_format_specific_snapshot", current)
 
@@ -811,6 +815,7 @@ class BaseObject:
                         self.mark_dirty(
                             DIRTY_CANVAS_RENDER, field_name=name, propagate=True
                         )
+                        self.mark_dirty(DIRTY_COMPILE, field_name=name, propagate=True)
                 else:
                     object.__setattr__(self, name, value)
             else:

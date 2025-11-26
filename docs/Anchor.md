@@ -22,7 +22,7 @@ An anchor point in a glyph.
 
 ### Anchor.x
 
-* Python type: `int`
+* Python type: `(int, float)`
 
 
 *If not provided, defaults to* `None`.
@@ -30,7 +30,7 @@ An anchor point in a glyph.
 
 ### Anchor.y
 
-* Python type: `int`
+* Python type: `(int, float)`
 
 
 *If not provided, defaults to* `None`.

@@ -388,7 +388,7 @@ class Font(BaseObject):
         Enable dirty tracking for this font and all its children.
         Call this after loading a font to activate change tracking.
 
-        Sets the font as clean for FILE_SAVING (matches disk state)
+        Sets the font as clean for FILE_SAVING and COMPILE (matches disk state)
         and dirty for CANVAS_RENDER (needs initial render).
 
         OPTIMIZATION: Uses lazy initialization - child objects get their
@@ -399,6 +399,7 @@ class Font(BaseObject):
             BaseObject,
             DIRTY_CANVAS_RENDER,
             DIRTY_FILE_SAVING,
+            DIRTY_COMPILE,
         )
 
         # Enable __setattr__ on BaseObject class (one-time operation)
@@ -440,6 +441,10 @@ class Font(BaseObject):
         self.mark_clean(DIRTY_FILE_SAVING, recursive=True)
         print("  📍 Font marked clean for FILE_SAVING")
 
+        # Mark font clean for COMPILE (no changes since load)
+        self.mark_clean(DIRTY_COMPILE, recursive=True)
+        print("  📍 Font marked clean for COMPILE")
+
         # Mark font dirty for canvas render (needs initial render)
         self.mark_dirty(DIRTY_CANVAS_RENDER, propagate=False)
         print("  📍 Font marked dirty for CANVAS_RENDER")
@@ -465,7 +470,7 @@ class Font(BaseObject):
 
     def __repr__(self):
         return "<Font '%s' (%i masters)>" % (
-            self.names.familyName.get_default(),
+            self.names.family_name.get_default(),
             len(self.masters),
         )
 

@@ -11,36 +11,36 @@ from context import Anchor, Guide, Layer, Node, Shape
 class TestNodeValidation:
     """Test Node property validation."""
 
-    def test_x_accepts_valid_int(self):
-        """x should accept integer values including negatives."""
+    def test_x_accepts_valid_numbers(self):
+        """x should accept integer and float values including negatives."""
         node = Node()
         node.x = 100
         assert node.x == 100
         node.x = -50
         assert node.x == -50
+        node.x = 100.5
+        assert node.x == 100.5
 
     def test_x_rejects_invalid_types(self):
-        """x should reject non-integer types."""
+        """x should reject non-numeric types."""
         node = Node()
-        with pytest.raises(ValueError, match="must be int"):
-            node.x = 100.5
-        with pytest.raises(ValueError, match="must be int"):
+        with pytest.raises(ValueError, match="must be int or float"):
             node.x = "100"
 
-    def test_y_accepts_valid_int(self):
-        """y should accept integer values including negatives."""
+    def test_y_accepts_valid_numbers(self):
+        """y should accept integer and float values including negatives."""
         node = Node()
         node.y = 200
         assert node.y == 200
         node.y = -100
         assert node.y == -100
+        node.y = 200.75
+        assert node.y == 200.75
 
     def test_y_rejects_invalid_types(self):
-        """y should reject non-integer types."""
+        """y should reject non-numeric types."""
         node = Node()
-        with pytest.raises(ValueError, match="must be int"):
-            node.y = 200.75
-        with pytest.raises(ValueError, match="must be int"):
+        with pytest.raises(ValueError, match="must be int or float"):
             node.y = "200"
 
     def test_type_accepts_valid_values(self):
@@ -136,15 +136,15 @@ class TestGuideValidation:
         with pytest.raises(ValueError, match="must be"):
             guide.position = 123
 
-    def test_position_rejects_float_coordinates(self):
-        """position should reject float x/y coordinates."""
+    def test_position_accepts_numeric_coordinates(self):
+        """position should accept int/float x/y coordinates."""
         guide = Guide()
-        # Dict with float x
-        with pytest.raises(ValueError, match="Position x must be int"):
-            guide.position = {"x": 100.5, "y": 200, "angle": 0}
-        # Dict with float y
-        with pytest.raises(ValueError, match="Position y must be int"):
-            guide.position = {"x": 100, "y": 200.5, "angle": 0}
+        # Dict with integers
+        guide.position = {"x": 100, "y": 200, "angle": 0}
+        assert guide.position.x == 100
+        # Dict with floats
+        guide.position = {"x": 100.5, "y": 200.5, "angle": 0}
+        assert guide.position.x == 100.5
 
     def test_color_accepts_valid_types(self):
         """color should accept Color, dict, list, or tuple."""
@@ -193,44 +193,44 @@ class TestAnchorValidation:
         with pytest.raises(ValueError, match="must be str"):
             anchor.name = None
 
-    def test_x_accepts_valid_int(self):
-        """x should accept integer values including negatives."""
+    def test_x_accepts_valid_numbers(self):
+        """x should accept integer and float values including negatives."""
         anchor = Anchor()
         anchor.x = 100
         assert anchor.x == 100
         anchor.x = -50
         assert anchor.x == -50
+        anchor.x = 100.5
+        assert anchor.x == 100.5
         anchor.x = 0
         assert anchor.x == 0
 
     def test_x_rejects_invalid_types(self):
-        """x should reject non-integer types including floats."""
+        """x should reject non-numeric types."""
         anchor = Anchor()
-        with pytest.raises(ValueError, match="must be int"):
-            anchor.x = 100.5
-        with pytest.raises(ValueError, match="must be int"):
+        with pytest.raises(ValueError, match="must be int or float"):
             anchor.x = "100"
-        with pytest.raises(ValueError, match="must be int"):
+        with pytest.raises(ValueError, match="must be int or float"):
             anchor.x = None
 
-    def test_y_accepts_valid_int(self):
-        """y should accept integer values including negatives."""
+    def test_y_accepts_valid_numbers(self):
+        """y should accept integer and float values including negatives."""
         anchor = Anchor()
         anchor.y = 200
         assert anchor.y == 200
         anchor.y = -100
         assert anchor.y == -100
+        anchor.y = 200.75
+        assert anchor.y == 200.75
         anchor.y = 0
         assert anchor.y == 0
 
     def test_y_rejects_invalid_types(self):
-        """y should reject non-integer types including floats."""
+        """y should reject non-numeric types."""
         anchor = Anchor()
-        with pytest.raises(ValueError, match="must be int"):
-            anchor.y = 200.75
-        with pytest.raises(ValueError, match="must be int"):
+        with pytest.raises(ValueError, match="must be int or float"):
             anchor.y = "200"
-        with pytest.raises(ValueError, match="must be int"):
+        with pytest.raises(ValueError, match="must be int or float"):
             anchor.y = None
 
 
@@ -297,52 +297,52 @@ class TestShapeValidation:
 class TestLayerValidation:
     """Test Layer property validation."""
 
-    def test_width_accepts_valid_int(self):
-        """width should accept integer values."""
+    def test_width_accepts_valid_numbers(self):
+        """width should accept integer and float values."""
         layer = Layer()
         layer.width = 600
         assert layer.width == 600
+        layer.width = 600.5
+        assert layer.width == 600.5
         layer.width = 0
         assert layer.width == 0
 
     def test_width_rejects_invalid_types(self):
-        """width should reject non-integer types including floats."""
+        """width should reject non-numeric types."""
         layer = Layer()
-        with pytest.raises(ValueError, match="must be int"):
-            layer.width = 600.5
-        with pytest.raises(ValueError, match="must be int"):
+        with pytest.raises(ValueError, match="must be int or float"):
             layer.width = "600"
 
-    def test_height_accepts_valid_int(self):
-        """height should accept integer values."""
+    def test_height_accepts_valid_numbers(self):
+        """height should accept integer and float values."""
         layer = Layer()
         layer.height = 800
         assert layer.height == 800
+        layer.height = 800.5
+        assert layer.height == 800.5
         layer.height = 0
         assert layer.height == 0
 
     def test_height_rejects_invalid_types(self):
-        """height should reject non-integer types including floats."""
+        """height should reject non-numeric types."""
         layer = Layer()
-        with pytest.raises(ValueError, match="must be int"):
-            layer.height = 800.5
-        with pytest.raises(ValueError, match="must be int"):
+        with pytest.raises(ValueError, match="must be int or float"):
             layer.height = "800"
 
-    def test_vertWidth_accepts_valid_int(self):
-        """vertWidth should accept integer values and None."""
+    def test_vertWidth_accepts_valid_numbers(self):
+        """vertWidth should accept integer and float values and None."""
         layer = Layer()
         layer.vertWidth = 1000
         assert layer.vertWidth == 1000
+        layer.vertWidth = 1000.5
+        assert layer.vertWidth == 1000.5
         layer.vertWidth = None
         assert layer.vertWidth is None
 
     def test_vertWidth_rejects_invalid_types(self):
-        """vertWidth should reject non-integer types (except None)."""
+        """vertWidth should reject non-numeric types (except None)."""
         layer = Layer()
-        with pytest.raises(ValueError, match="must be int"):
-            layer.vertWidth = 1000.5
-        with pytest.raises(ValueError, match="must be int"):
+        with pytest.raises(ValueError, match="must be int or float"):
             layer.vertWidth = "1000"
 
     def test_name_accepts_valid_string(self):

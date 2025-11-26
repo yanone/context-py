@@ -18,7 +18,7 @@ title: Node
 
 The x coordinate of the node.
 
-* Python type: `int`
+* Python type: `(int, float)`
 
 * **Required field**
 
@@ -29,7 +29,7 @@ The x coordinate of the node.
 
 The y coordinate of the node.
 
-* Python type: `int`
+* Python type: `(int, float)`
 
 * **Required field**
 

@@ -14,7 +14,7 @@ A layer in a glyph with shapes, anchors, and guides.
 
 ### Layer.width
 
-* Python type: `int`
+* Python type: `(int, float)`
 
 
 *If not provided, defaults to* `None`.
@@ -22,7 +22,7 @@ A layer in a glyph with shapes, anchors, and guides.
 
 ### Layer.height
 
-* Python type: `int`
+* Python type: `(int, float)`
 
 
 *If not provided, defaults to* `None`.
@@ -30,7 +30,7 @@ A layer in a glyph with shapes, anchors, and guides.
 
 ### Layer.vertWidth
 
-* Python type: `int`
+* Python type: `(int, float)`
 
 
 *If not provided, defaults to* `None`.

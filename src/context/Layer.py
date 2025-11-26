@@ -35,13 +35,13 @@ class Layer(BaseObject):
     # Define validation rules for each field
     _field_types = {
         "width": {
-            "data_type": int,
+            "data_type": (int, float),
         },
         "height": {
-            "data_type": int,
+            "data_type": (int, float),
         },
         "vertWidth": {
-            "data_type": int,
+            "data_type": (int, float),
         },
         "name": {
             "data_type": str,

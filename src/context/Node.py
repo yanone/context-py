@@ -15,11 +15,11 @@ class Node(BaseObject):
     # Define validation rules for each field
     _field_types = {
         "x": {
-            "data_type": int,
+            "data_type": (int, float),
             "required": True,
         },
         "y": {
-            "data_type": int,
+            "data_type": (int, float),
             "required": True,
         },
         "type": {
