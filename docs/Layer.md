@@ -10,7 +10,7 @@ A layer in a glyph with shapes, anchors, and guides.
 
 ## Constructor
 
-`Layer(width=0, height=0, vertWidth=None, name=None, _master=None, id=None, guides=None, shapes=None, anchors=None, color=None, layerIndex=0, background=None, isBackground=False, location=None)`
+`Layer(width=0, height=0, vertWidth=None, name=None, _master=None, id=None, guides=None, shapes=None, anchors=None, color=None, layerIndex=0, background=None, is_background=False, location=None)`
 
 ### Layer.width
 

@@ -23,7 +23,7 @@ def propagate_anchors(font: "Font", args=None):
 
 
 def _propagate_anchors(layer: "Layer", glyphname: str, processed: set):
-    if layer.isBackground or (glyphname, layer.id) in processed:
+    if layer.is_background or (glyphname, layer.id) in processed:
         return
     processed.add((glyphname, layer.id))
 

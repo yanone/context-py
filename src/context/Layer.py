@@ -62,7 +62,7 @@ class Layer(BaseObject):
         color=None,
         layerIndex=0,
         background=None,
-        isBackground=False,
+        is_background=False,
         location=None,
         _data=None,
         **kwargs,
@@ -92,7 +92,7 @@ class Layer(BaseObject):
                 "color": color,
                 "layerIndex": layerIndex,
                 "background": background,
-                "isBackground": isBackground,
+                "is_background": is_background,
                 "location": location,
             }
             data.update(kwargs)
@@ -318,12 +318,12 @@ class Layer(BaseObject):
         self._data["background"] = value
 
     @property
-    def isBackground(self):
-        return self._data.get("isBackground", False)
+    def is_background(self):
+        return self._data.get("is_background", False)
 
-    @isBackground.setter
-    def isBackground(self, value):
-        self._data["isBackground"] = value
+    @is_background.setter
+    def is_background(self, value):
+        self._data["is_background"] = value
 
     @property
     def location(self):
@@ -460,7 +460,7 @@ class Layer(BaseObject):
                     if layer.id == self.id:
                         result[current] = layer
                         break
-                if current not in result and self.isBackground:
+                if current not in result and self.is_background:
                     master_layer = self._background_of()
                     if master_layer:
                         master = master_layer._font.master(master_layer._master)
