@@ -5,7 +5,8 @@ from .background import decompose_backgrounds, zero_background_width
 from .cu2qu import cubic_to_quadratic
 from .customParameters import apply_custom_parameters
 from .decomposeMixed import decompose_mixed_glyphs
-from .dropUnexported import drop_unexported_glyphs
+
+# from .dropUnexported import drop_unexported_glyphs
 from .fillOpentype import fill_opentype_values
 from .glyphDataXML import bake_in_glyphdata
 from .intermediateLayer import promote_intermediate_layers
@@ -18,7 +19,7 @@ FILTERS = {
     "zeroMarkWidths": zero_mark_widths,
     "renameGlyphs": rename_glyphs,
     "decomposeMixedGlyphs": decompose_mixed_glyphs,
-    "dropUnexportedGlyphs": drop_unexported_glyphs,
+    #     "dropUnexportedGlyphs": drop_unexported_glyphs,
     "cubicToQuadratic": cubic_to_quadratic,
     "glyphData": bake_in_glyphdata,
     "fillOpentypeValues": fill_opentype_values,
