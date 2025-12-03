@@ -25,6 +25,9 @@ from context.ai_docs import (
     generate_minimal_docs,
 )
 
+# Import opentype submodule
+from context import opentype
+
 
 __all__ = [
     "Font",
@@ -51,6 +54,7 @@ __all__ = [
     "DIRTY_CANVAS_RENDER",
     "DIRTY_UNDO",
     "DIRTY_COMPILE",
+    "opentype",
 ]
 
 
