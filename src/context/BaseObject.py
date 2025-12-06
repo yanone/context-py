@@ -46,8 +46,9 @@ class TrackedDict(dict):
                 nested = TrackedDict(
                     owner=self._owner_ref() if self._owner_ref else None
                 )
-                nested.update(value)
-                # Use dict.__setitem__ to avoid triggering dirty marking during init
+                # Recursively populate without triggering dirty marking
+                self._populate_tracked_dict(nested, value)
+                # Use dict.__setitem__ to avoid triggering dirty marking
                 dict.__setitem__(self, key, nested)
             elif isinstance(value, list):
                 # Convert lists containing dicts (but not I18NDictionary)
@@ -59,7 +60,7 @@ class TrackedDict(dict):
                         nested = TrackedDict(
                             owner=self._owner_ref() if self._owner_ref else None
                         )
-                        nested.update(item)
+                        self._populate_tracked_dict(nested, item)
                         new_list.append(nested)
                     else:
                         new_list.append(item)
@@ -67,6 +68,39 @@ class TrackedDict(dict):
                     isinstance(item, TrackedDict) for item in new_list
                 ):  # Only replace if we converted something
                     dict.__setitem__(self, key, new_list)
+    
+    def _populate_tracked_dict(self, target, source):
+        """
+        Recursively populate a TrackedDict from a plain dict.
+        Converts nested dicts to TrackedDict without triggering dirty marking.
+        """
+        for key, value in source.items():
+            if isinstance(value, dict) and not isinstance(
+                value, (TrackedDict, I18NDictionary)
+            ):
+                # Recursively convert nested dicts
+                nested = TrackedDict(
+                    owner=self._owner_ref() if self._owner_ref else None
+                )
+                self._populate_tracked_dict(nested, value)
+                dict.__setitem__(target, key, nested)
+            elif isinstance(value, list):
+                # Convert lists containing dicts
+                new_list = []
+                for item in value:
+                    if isinstance(item, dict) and not isinstance(
+                        item, (TrackedDict, I18NDictionary)
+                    ):
+                        nested = TrackedDict(
+                            owner=self._owner_ref() if self._owner_ref else None
+                        )
+                        self._populate_tracked_dict(nested, item)
+                        new_list.append(nested)
+                    else:
+                        new_list.append(item)
+                dict.__setitem__(target, key, new_list)
+            else:
+                dict.__setitem__(target, key, value)
 
     def _mark_owner_dirty(self):
         """Mark the owner object as dirty when dict is modified."""
@@ -90,12 +124,16 @@ class TrackedDict(dict):
                 )
 
     def __setitem__(self, key, value):
+        # Get old value for comparison BEFORE any modification
+        old_value = self.get(key, None)
+        
         # Convert nested dicts to TrackedDict (but not I18NDictionary)
         if isinstance(value, dict) and not isinstance(
             value, (TrackedDict, I18NDictionary)
         ):
             nested = TrackedDict(owner=self._owner_ref() if self._owner_ref else None)
-            nested.update(value)
+            # Recursively populate without triggering dirty marking
+            self._populate_tracked_dict(nested, value)
             value = nested
         elif isinstance(value, list):
             # Convert lists containing dicts (but not I18NDictionary)
@@ -108,7 +146,8 @@ class TrackedDict(dict):
                     nested = TrackedDict(
                         owner=self._owner_ref() if self._owner_ref else None
                     )
-                    nested.update(item)
+                    # Recursively populate without triggering dirty marking
+                    self._populate_tracked_dict(nested, item)
                     new_list.append(nested)
                     converted = True
                 else:
@@ -116,8 +155,36 @@ class TrackedDict(dict):
             if converted:
                 value = new_list
 
+        # Check if value actually changed BEFORE setting
+        value_changed = self._values_differ(old_value, value)
+        
+        # Now set the value
         super().__setitem__(key, value)
-        self._mark_owner_dirty()
+        
+        # Only mark dirty if value actually changed
+        if value_changed:
+            self._mark_owner_dirty()
+    
+    def _values_differ(self, old_value, new_value):
+        """
+        Compare two values to see if they differ.
+        Handles TrackedDict instances by comparing as plain dicts.
+        """
+        # Handle None cases
+        if old_value is None and new_value is None:
+            return False
+        if old_value is None or new_value is None:
+            return True
+        
+        # For dict-like objects, compare as dicts
+        if isinstance(old_value, dict) and isinstance(new_value, dict):
+            # Convert to plain dicts for comparison
+            old_dict = dict(old_value)
+            new_dict = dict(new_value)
+            return old_dict != new_dict
+        
+        # For other types, use standard comparison
+        return old_value != new_value
 
     def __delitem__(self, key):
         super().__delitem__(key)
@@ -138,6 +205,7 @@ class TrackedDict(dict):
         return result
 
     def setdefault(self, key, default=None):
+        # Only mark dirty if key doesn't exist (setdefault will add it)
         if key not in self:
             self._mark_owner_dirty()
         return super().setdefault(key, default)
