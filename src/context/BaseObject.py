@@ -930,9 +930,14 @@ class BaseObject:
                     # Convert both empty and non-empty dicts for consistency
                     if isinstance(value, dict) and not isinstance(value, TrackedDict):
                         tracked = TrackedDict(owner=self)
-                        if value:  # Only update if non-empty
-                            tracked.update(value)
-                        object.__setattr__(self, "format_specific", tracked)
+                        if value:  # Only populate if non-empty
+                            # Use _populate_tracked_dict to avoid dirty marking
+                            # during initial conversion
+                            tracked._populate_tracked_dict(tracked, value)
+                        # Set directly in _data to bypass property setter
+                        # (which would mark dirty)
+                        _data = object.__getattribute__(self, "_data")
+                        _data["format_specific"] = tracked
                         value = tracked
 
                     # Check for nested changes (only if non-empty TrackedDict)

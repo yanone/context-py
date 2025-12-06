@@ -626,6 +626,135 @@ class Font(BaseObject):
             # Re-raise the original error
             raise
 
+    def print_dirty_objects(self, context=None):
+        """
+        Print a report of all objects that have changed since the last save.
+        
+        Args:
+            context: Optional dirty context to check. If None, checks 
+                    DIRTY_FILE_SAVING context (changes since last save).
+        """
+        from context.BaseObject import DIRTY_FILE_SAVING
+        
+        if context is None:
+            context = DIRTY_FILE_SAVING
+        
+        # Check if tracking is enabled
+        if not self._tracking_enabled:
+            print("⚠️  Dirty tracking is not enabled. Call initialize_dirty_tracking() first.")
+            return
+        
+        changes = []
+        
+        # Check font-level changes
+        if self.is_dirty(context):
+            dirty_fields = self.get_dirty_fields(context)
+            if dirty_fields:
+                changes.append(f"Font: {', '.join(sorted(dirty_fields))}")
+            else:
+                changes.append("Font: (unspecified changes)")
+        
+        # Check axes
+        dirty_axes = []
+        for i, axis in enumerate(self.axes):
+            if axis.is_dirty(context):
+                dirty_fields = axis.get_dirty_fields(context)
+                if dirty_fields:
+                    dirty_axes.append(f"  [{i}] {axis.name}: {', '.join(sorted(dirty_fields))}")
+                else:
+                    dirty_axes.append(f"  [{i}] {axis.name}")
+        
+        if dirty_axes:
+            changes.append(f"Axes ({len(dirty_axes)} changed):")
+            changes.extend(dirty_axes)
+        
+        # Check instances
+        dirty_instances = []
+        for i, instance in enumerate(self.instances):
+            if instance.is_dirty(context):
+                dirty_fields = instance.get_dirty_fields(context)
+                if dirty_fields:
+                    dirty_instances.append(f"  [{i}] {instance.name}: {', '.join(sorted(dirty_fields))}")
+                else:
+                    dirty_instances.append(f"  [{i}] {instance.name}")
+        
+        if dirty_instances:
+            changes.append(f"Instances ({len(dirty_instances)} changed):")
+            changes.extend(dirty_instances)
+        
+        # Check masters
+        dirty_masters = []
+        for i, master in enumerate(self.masters):
+            if master.is_dirty(context):
+                dirty_fields = master.get_dirty_fields(context)
+                if dirty_fields:
+                    dirty_masters.append(f"  [{i}] {master.name}: {', '.join(sorted(dirty_fields))}")
+                else:
+                    dirty_masters.append(f"  [{i}] {master.name}")
+        
+        if dirty_masters:
+            changes.append(f"Masters ({len(dirty_masters)} changed):")
+            changes.extend(dirty_masters)
+        
+        # Check glyphs
+        dirty_glyphs = []
+        for glyph in self.glyphs:
+            if glyph.is_dirty(context):
+                dirty_fields = glyph.get_dirty_fields(context)
+                
+                # Check if any layers are dirty
+                dirty_layers = []
+                for layer in glyph.layers:
+                    if layer.is_dirty(context):
+                        layer_fields = layer.get_dirty_fields(context)
+                        if layer_fields:
+                            dirty_layers.append(f"{layer._master_id or 'default'}: {', '.join(sorted(layer_fields))}")
+                        else:
+                            dirty_layers.append(f"{layer._master_id or 'default'}")
+                
+                if dirty_layers:
+                    dirty_glyphs.append(f"  {glyph.name}: layers={', '.join(dirty_layers)}")
+                elif dirty_fields:
+                    dirty_glyphs.append(f"  {glyph.name}: {', '.join(sorted(dirty_fields))}")
+                else:
+                    dirty_glyphs.append(f"  {glyph.name}")
+        
+        if dirty_glyphs:
+            changes.append(f"Glyphs ({len(dirty_glyphs)} changed):")
+            # Only show first 20 to avoid overwhelming output
+            if len(dirty_glyphs) > 20:
+                changes.extend(dirty_glyphs[:20])
+                changes.append(f"  ... and {len(dirty_glyphs) - 20} more")
+            else:
+                changes.extend(dirty_glyphs)
+        
+        # Check names
+        if self.names.is_dirty(context):
+            dirty_fields = self.names.get_dirty_fields(context)
+            if dirty_fields:
+                changes.append(f"Names: {', '.join(sorted(dirty_fields))}")
+            else:
+                changes.append("Names: (changed)")
+        
+        # Check features
+        if self.features.is_dirty(context):
+            dirty_fields = self.features.get_dirty_fields(context)
+            if dirty_fields:
+                changes.append(f"Features: {', '.join(sorted(dirty_fields))}")
+            else:
+                changes.append("Features: (changed)")
+        
+        # Print the report
+        if changes:
+            print(f"\n{'='*60}")
+            print(f"Dirty Objects Report ({context})")
+            print(f"{'='*60}")
+            for change in changes:
+                print(change)
+            print(f"{'='*60}\n")
+        else:
+            print(f"\n✓ No changes detected (all clean for {context})\n")
+
     def _convert_keys_to_str(self, obj, sort=True, path=None):
         """Recursively convert dict keys to strings for JSON.
 
